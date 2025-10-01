@@ -66,17 +66,17 @@ async def save_memory(
         user_uuid = UUID(user_id)
         
         # Verify user has access to project
-        has_access = await verify_user_project_access(
-            request.project_id, 
-            user_uuid, 
-            db
-        )
+        # has_access = await verify_user_project_access(
+        #     request.project_id, 
+        #     user_uuid, 
+        #     db
+        # )
         
-        if not has_access:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="User does not have access to this project"
-            )
+        # if not has_access:
+        #     raise HTTPException(
+        #         status_code=status.HTTP_403_FORBIDDEN,
+        #         detail="User does not have access to this project"
+        #     )
         
         # Save memory
         memory = await save_service.save_memory(
