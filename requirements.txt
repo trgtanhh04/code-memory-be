@@ -27,7 +27,7 @@ python-multipart==0.0.6
 
 # AI/ML Dependencies
 langchain-google-genai==1.0.10
-google-generativeai==0.3.2
+google-generativeai>=0.7.0,<0.8.0
 numpy==1.24.4
 
 # Supabase
