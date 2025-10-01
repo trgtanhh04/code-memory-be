@@ -1,0 +1,10 @@
+{
+  "content": "FastAPI JWT Authentication Implementation. Here's how to implement secure authentication in FastAPI using JWT tokens with proper validation and error handling.",
+  "project_id": "68ced3c3-3b6b-4c2e-b31a-e4e760f3e648",
+  "tags": ["fastapi", "jwt", "authentication", "security"],
+  "metadata": {
+    "source": "api_test",
+    "difficulty": "intermediate",
+    "language": "python"
+  }
+}
