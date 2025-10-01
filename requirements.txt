@@ -34,7 +34,7 @@ numpy==1.24.4
 supabase==2.0.3
 
 # HTTP Client
-httpx==0.25.2
+httpx>=0.24.0,<0.25.0
 aiohttp==3.9.1
 
 # Utilities
