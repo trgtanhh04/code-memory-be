@@ -1,21 +1,22 @@
-# Build Dependencies
-setuptools==69.5.1
-wheel==0.43.0
-pip==24.0
+# Build Dependencies - Fixed for Python 3.11 compatibility
+setuptools==68.2.2
+wheel==0.41.2
+pip==23.3.1
 build==1.0.3
-packaging==24.0
+packaging==23.2
+Cython==3.0.5
 
 # FastAPI and Web Framework
 fastapi==0.104.1
-uvicorn[standard]==0.24.0
-pydantic==2.5.0
-pydantic-settings==2.1.0
+uvicorn[standard]==0.23.2
+pydantic==2.4.2
+pydantic-settings==2.0.3
 
 # Database Dependencies
-sqlalchemy==2.0.23
-asyncpg==0.29.0
-psycopg2-binary==2.9.9
-alembic==1.13.1
+sqlalchemy==2.0.21
+asyncpg==0.28.0
+psycopg2-binary==2.9.7
+alembic==1.12.1
 
 # Redis
 redis==5.0.1
@@ -27,7 +28,7 @@ python-multipart==0.0.6
 # AI/ML Dependencies
 langchain-google-genai==1.0.10
 google-generativeai==0.3.2
-numpy==1.24.3
+numpy==1.24.4
 
 # Supabase
 supabase==2.0.3
