@@ -48,7 +48,21 @@ class SearchMemoryRequest(BaseModel):
 
 
 class SearchMemoryResponse(BaseModel):
-    results: List[MemoryResponse]
-    query: str
-    total_results: int
-    execution_time_ms: float
+    memory: MemoryResponse
+    similarity_score: float
+
+
+class GetMemoriesRequest(BaseModel):
+    project_id: UUID
+    page: int = Field(default=1, ge=1)
+    limit: int = Field(default=20, ge=1, le=100)
+    tags: Optional[List[str]] = None
+    search_content: Optional[str] = None
+
+
+class GetMemoriesResponse(BaseModel):
+    memories: List[MemoryResponse]
+    total: int
+    page: int
+    limit: int
+    total_pages: int
