@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 class SaveMemoryService:
-    def __init__(self, db: AsyncSession, redis: Redis):
+    def __init__(self, db: AsyncSession, redis: Optional[Redis] = None):
         self.db = db
         self.redis = redis
         self.embedding_model = get_embedding_model()
@@ -144,24 +144,27 @@ class SaveMemoryService:
 
     async def _cache_memory(self, memory: Memory, user_id: UUID, project_id: UUID):
         try:
-            cache_key = f"memory:{memory.id}"
-            memory_data = {
-                "id": str(memory.id),
-                "content": memory.content,
-                "tags": memory.tags,
-                "created_at": memory.created_at.isoformat(),
-                "project_id": str(memory.project_id)
-            }
-            
-            self.redis.setex(cache_key, 3600, json.dumps(memory_data))
-            
-            user_recent_key = f"user:{user_id}:recent_memories"
-            self.redis.lpush(user_recent_key, str(memory.id))
-            self.redis.ltrim(user_recent_key, 0, 49)
-            self.redis.expire(user_recent_key, 86400)
-            
-            project_cache_key = f"project:{project_id}:memories"
-            self.redis.delete(project_cache_key)
+            if self.redis:  # Only cache if Redis is available
+                cache_key = f"memory:{memory.id}"
+                memory_data = {
+                    "id": str(memory.id),
+                    "content": memory.content,
+                    "tags": memory.tags,
+                    "created_at": memory.created_at.isoformat(),
+                    "project_id": str(memory.project_id)
+                }
+                
+                self.redis.setex(cache_key, 3600, json.dumps(memory_data))
+                
+                user_recent_key = f"user:{user_id}:recent_memories"
+                self.redis.lpush(user_recent_key, str(memory.id))
+                self.redis.ltrim(user_recent_key, 0, 49)
+                self.redis.expire(user_recent_key, 86400)
+                
+                project_cache_key = f"project:{project_id}:memories"
+                self.redis.delete(project_cache_key)
+            else:
+                logger.info("Redis not available, skipping cache operations")
             
         except Exception as e:
             logger.warning(f"Failed to cache memory: {str(e)}")

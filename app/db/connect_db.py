@@ -125,7 +125,11 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
         await session.close()
 
 def get_redis() -> redis.Redis:
-    return db_manager.get_redis_client()
+    try:
+        return db_manager.get_redis_client()
+    except Exception as e:
+        logger.warning(f"Redis not available: {e}")
+        return None
 
 async def initialize_all_databases():
     pg_success = await db_manager.initialize_postgresql()

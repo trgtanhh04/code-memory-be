@@ -18,7 +18,7 @@ router = APIRouter(prefix="/api/v1/memories", tags=["memories"])
 
 async def get_save_memory_service(
     db: AsyncSession = Depends(get_db_session),
-    redis: Redis = Depends(get_redis)
+    redis: Optional[Redis] = Depends(get_redis)
 ) -> SaveMemoryService:
     """Dependency to get SaveMemoryService instance"""
     return SaveMemoryService(db=db, redis=redis)
