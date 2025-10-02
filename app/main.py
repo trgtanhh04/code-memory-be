@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.db.connect_db import db_manager, initialize_all_databases
 from app.api.memory_routes import router as memory_router
+from app.api.project_routes import router as project_router
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -64,6 +65,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(memory_router)
+app.include_router(project_router)
 
 
 @app.get("/")

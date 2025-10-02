@@ -65,8 +65,6 @@ class Memory(Base):
     summary = Column(Text, nullable=True)
     tags = Column(PG_ARRAY(Text), nullable=True)
     meta_data = Column(JSONB, nullable=True)
-    # pgvector column for embeddings (768 dimensions for text-embedding-004)
-    # embedding = Column(Vector(768), nullable=True)  # Will enable after migration
     embedding = Column(PG_ARRAY(Float), nullable=True)  # Temporary fallback
     usage_count = Column(Integer, default=0)
     last_accessed_at = Column(DateTime(timezone=True), nullable=True)

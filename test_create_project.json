@@ -1,0 +1,10 @@
+{
+  "name": "CodeMemory Test Project", 
+  "description": "A test project for CodeMemory application with sample data and testing features",
+  "settings": {
+    "auto_tagging": true,
+    "embedding_model": "text-embedding-004",
+    "max_memories": 1000,
+    "retention_days": 365
+  }
+}

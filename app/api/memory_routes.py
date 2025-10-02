@@ -5,8 +5,12 @@ import logging
 from typing import List, Optional
 from uuid import UUID
 
-from app.schemas.memory_schemas import SaveMemoryRequest, MemoryResponse, GetMemoriesResponse
+from app.schemas.memory_schemas import (
+    SaveMemoryRequest, MemoryResponse, GetMemoriesResponse, 
+    GetRecentMemoriesRequest, GetRecentMemoriesResponse
+)
 from app.services.save_memory_service import SaveMemoryService
+from app.services.project_service import ProjectService
 from app.db.connect_db import get_db_session, get_redis
 from app.models.memory_models import UserProject
 from sqlalchemy import select
@@ -24,6 +28,13 @@ async def get_save_memory_service(
 ) -> SaveMemoryService:
     """Dependency to get SaveMemoryService instance"""
     return SaveMemoryService(db=db, redis=redis)
+
+
+async def get_project_service(
+    db: AsyncSession = Depends(get_db_session)
+) -> ProjectService:
+    """Dependency to get ProjectService instance"""
+    return ProjectService(db=db)
 
 
 async def verify_user_project_access(
@@ -278,6 +289,76 @@ async def get_memories(
         raise
     except Exception as e:
         logger.error(f"Error getting memories: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
+
+
+@router.get("/projects/{project_id}/recent", response_model=GetRecentMemoriesResponse)
+async def get_recent_memories(
+    project_id: UUID,
+    limit: int = 10,
+    days: int = 7,
+    user_id: Optional[str] = Header(None, alias="X-User-ID"),
+    project_service: ProjectService = Depends(get_project_service)
+):
+    """
+    Get recent memories from a project within specified days
+    
+    - **project_id**: UUID of the project
+    - **limit**: Number of memories to return (default: 10, max: 50)
+    - **days**: Number of days to look back (default: 7, max: 30)
+    """
+    try:
+        if not user_id:
+            user_id = "12345678-1234-5678-9012-123456789012"
+        
+        # user_uuid = UUID(user_id)  # Comment out for testing
+        
+        # Validate parameters
+        if limit > 50:
+            limit = 50
+        if days > 30:
+            days = 30
+        
+        # Get recent memories
+        memories = await project_service.get_recent_memories(
+            project_id=project_id,
+            # user_id=user_uuid,  # Comment out for testing
+            limit=limit,
+            days=days
+        )
+        
+        # Build response
+        memory_responses = []
+        for memory in memories:
+            memory_responses.append(MemoryResponse(
+                id=memory.id,
+                content=memory.content,
+                tags=memory.tags or [],
+                created_at=memory.created_at,
+                updated_at=memory.updated_at,
+                project_id=memory.project_id,
+                meta_data=memory.meta_data or {},
+                usage_count=memory.usage_count,
+                embedding_dimensions=len(memory.embedding) if memory.embedding else None
+            ))
+        
+        return GetRecentMemoriesResponse(
+            memories=memory_responses,
+            total=len(memory_responses)
+        )
+        
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting recent memories: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error"

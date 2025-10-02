@@ -66,3 +66,49 @@ class GetMemoriesResponse(BaseModel):
     page: int
     limit: int
     total_pages: int
+
+
+# ============= PROJECT SCHEMAS =============
+
+class CreateProjectRequest(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
+    description: Optional[str] = Field(default=None, max_length=1000)
+    settings: Optional[Dict[str, Any]] = Field(default=None)
+
+    @validator('name')
+    def validate_name(cls, v):
+        if not v or not v.strip():
+            raise ValueError('Project name cannot be empty')
+        return v.strip()
+
+    @validator('description')
+    def validate_description(cls, v):
+        if v is not None:
+            return v.strip() if v.strip() else None
+        return v
+
+
+class ProjectResponse(BaseModel):
+    id: UUID
+    name: str
+    description: Optional[str]
+    settings: Optional[Dict[str, Any]]
+    created_at: datetime
+    updated_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+
+class GetRecentMemoriesRequest(BaseModel):
+    project_id: UUID
+    limit: int = Field(default=10, ge=1, le=50)
+    days: int = Field(default=7, ge=1, le=30)
+
+
+class GetRecentMemoriesResponse(BaseModel):
+    memories: List[MemoryResponse]
+    total: int
+
+    class Config:
+        from_attributes = True
