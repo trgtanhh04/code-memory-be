@@ -1,0 +1,12 @@
+{
+  "content": "Elasticsearch search optimization and indexing strategies. Master full-text search, aggregations, custom analyzers, and performance tuning for large-scale search applications.",
+  "project_id": "68ced3c3-3b6b-4c2e-b31a-e4e760f3e648", 
+  "tags": ["elasticsearch", "search", "indexing", "performance", "analytics"],
+  "metadata": {
+    "source": "search_tutorial",
+    "difficulty": "advanced",
+    "language": "json",
+    "technology": "elasticsearch",
+    "use_case": "search"
+  }
+}

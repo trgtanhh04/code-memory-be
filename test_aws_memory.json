@@ -1,0 +1,12 @@
+{
+  "content": "AWS Lambda serverless architecture patterns. Design event-driven applications using Lambda functions, API Gateway, DynamoDB, and implement proper error handling and monitoring.",
+  "project_id": "68ced3c3-3b6b-4c2e-b31a-e4e760f3e648",
+  "tags": ["aws", "lambda", "serverless", "api-gateway", "dynamodb"],
+  "metadata": {
+    "source": "aws_serverless",
+    "difficulty": "intermediate",
+    "language": "python",
+    "platform": "aws",
+    "architecture": "serverless"
+  }
+}

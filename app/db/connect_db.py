@@ -10,20 +10,20 @@ import redis
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy import text
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Optional
 import logging
 
 from config.config import (
     DATABASE_URL,  
     REDIS_URL,
-    REDIS_HOST,
-    REDIS_PORT,
-    REDIS_PASSWORD,
-    REDIS_DB
 )
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Enable Redis logging
+redis_logger = logging.getLogger('redis')
+redis_logger.setLevel(logging.DEBUG)
 
 Base = declarative_base()
 
@@ -61,31 +61,55 @@ class DatabaseManager:
             return False
     
     def initialize_redis(self) -> bool:
-        try:
-            if REDIS_URL:
+        """Initialize Redis connection with retry logic"""
+        max_retries = 3
+        
+        for attempt in range(max_retries):
+            try:
+                if not REDIS_URL:
+                    logger.warning("REDIS_URL not configured")
+                    return False
+
+                logger.info(f"Redis connection attempt {attempt + 1}/{max_retries}")
+                
+                # Create connection with optimized settings for Upstash
                 self.redis_client = redis.from_url(
                     REDIS_URL,
                     decode_responses=True,
                     socket_keepalive=True,
-                    socket_keepalive_options={}
+                    socket_keepalive_options={},
+                    socket_connect_timeout=10,  # 10s connect timeout
+                    socket_timeout=5,           # 5s read timeout
+                    retry_on_timeout=True,
+                    health_check_interval=30    # Health check every 30s
                 )
-            else:
-                self.redis_client = redis.Redis(
-                    host=REDIS_HOST,
-                    port=REDIS_PORT,
-                    password=REDIS_PASSWORD,
-                    db=REDIS_DB,
-                    decode_responses=True,
-                    socket_keepalive=True,
-                    socket_keepalive_options={}
-                )
-            
-            self.redis_client.ping()
-            logger.info("Redis connection initialized successfully")
-            return True
-        except Exception as e:
-            logger.error(f"Failed to initialize Redis: {e}")
-            return False
+                
+                # Test connection with ping
+                logger.info("Testing Redis connection with PING...")
+                ping_result = self.redis_client.ping()
+                logger.info(f"Redis PING successful: {ping_result}")
+                
+                # Test basic operations
+                test_key = "connection_test"
+                self.redis_client.setex(test_key, 10, "test_value")
+                test_value = self.redis_client.get(test_key)
+                logger.info(f"Redis test operation: {test_value}")
+                
+                logger.info("Redis connection initialized successfully")
+                return True
+                
+            except redis.ConnectionError as e:
+                logger.warning(f"Redis connection attempt {attempt + 1} failed: {e}")
+                if attempt == max_retries - 1:
+                    logger.error("All Redis connection attempts failed")
+                    return False
+                    
+            except Exception as e:
+                logger.error(f"Redis initialization error: {e}")
+                return False
+        
+        return False
+
     
     async def get_async_session(self) -> AsyncSession:
         if not self.async_session_factory:
@@ -124,7 +148,8 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     finally:
         await session.close()
 
-def get_redis() -> redis.Redis:
+def get_redis() -> Optional[redis.Redis]:
+    """Get Redis client - returns None if Redis not available"""
     try:
         return db_manager.get_redis_client()
     except Exception as e:

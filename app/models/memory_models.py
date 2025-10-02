@@ -4,6 +4,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB, ARRAY as PG_ARRAY
 from sqlalchemy.orm import relationship, declarative_base
+# from pgvector.sqlalchemy import Vector  # Comment out for now
 import uuid
 
 Base = declarative_base()
@@ -64,7 +65,9 @@ class Memory(Base):
     summary = Column(Text, nullable=True)
     tags = Column(PG_ARRAY(Text), nullable=True)
     meta_data = Column(JSONB, nullable=True)
-    embedding = Column(ARRAY(Float), nullable=True)
+    # pgvector column for embeddings (768 dimensions for text-embedding-004)
+    # embedding = Column(Vector(768), nullable=True)  # Will enable after migration
+    embedding = Column(PG_ARRAY(Float), nullable=True)  # Temporary fallback
     usage_count = Column(Integer, default=0)
     last_accessed_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

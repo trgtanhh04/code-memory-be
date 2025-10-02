@@ -1,0 +1,112 @@
+[
+  {
+    "content": "React Hook useState and useEffect best practices. Learn how to manage component state and side effects efficiently in modern React applications with proper cleanup and dependency arrays.",
+    "project_id": "68ced3c3-3b6b-4c2e-b31a-e4e760f3e648",
+    "tags": ["react", "hooks", "useState", "useEffect", "frontend"],
+    "metadata": {
+      "source": "react_tutorial",
+      "difficulty": "beginner",
+      "language": "javascript",
+      "framework": "react"
+    }
+  },
+  {
+    "content": "Docker containerization for Node.js applications. Complete guide on creating Dockerfiles, multi-stage builds, and optimizing container size for production deployment.",
+    "project_id": "68ced3c3-3b6b-4c2e-b31a-e4e760f3e648",
+    "tags": ["docker", "nodejs", "containerization", "devops", "deployment"],
+    "metadata": {
+      "source": "devops_guide",
+      "difficulty": "intermediate",
+      "language": "dockerfile",
+      "category": "infrastructure"
+    }
+  },
+  {
+    "content": "PostgreSQL database optimization techniques. Index strategies, query performance tuning, and connection pooling for high-performance applications.",
+    "project_id": "68ced3c3-3b6b-4c2e-b31a-e4e760f3e648",
+    "tags": ["postgresql", "database", "optimization", "performance", "sql"],
+    "metadata": {
+      "source": "database_tutorial",
+      "difficulty": "advanced",
+      "language": "sql",
+      "type": "optimization"
+    }
+  },
+  {
+    "content": "Python asyncio and concurrent programming patterns. Understanding event loops, async/await syntax, and building scalable asynchronous applications.",
+    "project_id": "68ced3c3-3b6b-4c2e-b31a-e4e760f3e648",
+    "tags": ["python", "asyncio", "concurrency", "async", "performance"],
+    "metadata": {
+      "source": "python_advanced",
+      "difficulty": "advanced",
+      "language": "python",
+      "topic": "concurrency"
+    }
+  },
+  {
+    "content": "Redis caching strategies for web applications. Implement cache-aside, write-through, and write-behind patterns for optimal performance and data consistency.",
+    "project_id": "68ced3c3-3b6b-4c2e-b31a-e4e760f3e648",
+    "tags": ["redis", "caching", "performance", "database", "architecture"],
+    "metadata": {
+      "source": "caching_guide",
+      "difficulty": "intermediate",
+      "language": "redis",
+      "pattern": "caching"
+    }
+  },
+  {
+    "content": "Kubernetes deployment and service management. Learn how to deploy applications using pods, services, ingress controllers, and manage scaling with HPA.",
+    "project_id": "68ced3c3-3b6b-4c2e-b31a-e4e760f3e648",
+    "tags": ["kubernetes", "k8s", "deployment", "devops", "orchestration"],
+    "metadata": {
+      "source": "k8s_tutorial",
+      "difficulty": "advanced",
+      "language": "yaml",
+      "platform": "kubernetes"
+    }
+  },
+  {
+    "content": "JWT token security and validation in microservices. Implement token-based authentication with refresh tokens, blacklisting, and cross-service validation.",
+    "project_id": "68ced3c3-3b6b-4c2e-b31a-e4e760f3e648",
+    "tags": ["jwt", "security", "authentication", "microservices", "token"],
+    "metadata": {
+      "source": "security_guide",
+      "difficulty": "intermediate",
+      "language": "jwt",
+      "architecture": "microservices"
+    }
+  },
+  {
+    "content": "TypeScript advanced types and generics. Master conditional types, mapped types, utility types, and build type-safe APIs with complex generic constraints.",
+    "project_id": "68ced3c3-3b6b-4c2e-b31a-e4e760f3e648",
+    "tags": ["typescript", "generics", "types", "advanced", "type-safety"],
+    "metadata": {
+      "source": "typescript_advanced",
+      "difficulty": "advanced",
+      "language": "typescript",
+      "topic": "type-system"
+    }
+  },
+  {
+    "content": "GraphQL API design and implementation. Build efficient GraphQL schemas, resolvers, and implement DataLoader pattern for N+1 query optimization.",
+    "project_id": "68ced3c3-3b6b-4c2e-b31a-e4e760f3e648",
+    "tags": ["graphql", "api", "schema", "resolvers", "optimization"],
+    "metadata": {
+      "source": "graphql_tutorial",
+      "difficulty": "intermediate",
+      "language": "graphql",
+      "type": "api"
+    }
+  },
+  {
+    "content": "Machine Learning model deployment with MLOps. Implement CI/CD pipelines for ML models using Docker, Kubernetes, and monitoring with MLflow.",
+    "project_id": "68ced3c3-3b6b-4c2e-b31a-e4e760f3e648",
+    "tags": ["mlops", "machine-learning", "deployment", "docker", "monitoring"],
+    "metadata": {
+      "source": "mlops_guide",
+      "difficulty": "advanced",
+      "language": "python",
+      "domain": "machine-learning"
+    }
+  }
+]

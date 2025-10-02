@@ -42,5 +42,8 @@ python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 email-validator==2.1.0
 
+# Vector Database
+pgvector==0.2.4
+
 # CORS
 fastapi-cors==0.0.6

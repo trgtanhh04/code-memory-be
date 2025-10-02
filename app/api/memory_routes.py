@@ -11,6 +11,8 @@ from app.db.connect_db import get_db_session, get_redis
 from app.models.memory_models import UserProject
 from sqlalchemy import select
 from sqlalchemy import func, text
+from sqlalchemy import and_, func, text
+from app.models.memory_models import Memory
 
 logger = logging.getLogger(__name__)
 
@@ -217,10 +219,7 @@ async def get_memories(
         # Calculate offset
         offset = (page - 1) * limit
         
-        # Build query
-        from sqlalchemy import and_, func, text
-        from app.models.memory_models import Memory
-        
+
         # Base query
         query_conditions = [Memory.project_id == project_id]
         
