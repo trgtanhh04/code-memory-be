@@ -56,6 +56,7 @@ async def verify_user_project_access(
         return False
 
 
+# --------------- Save Memory Endpoint ---------------
 @router.post("/save", response_model=MemoryResponse, status_code=status.HTTP_201_CREATED)
 async def save_memory(
     request: SaveMemoryRequest,
@@ -363,3 +364,6 @@ async def get_recent_memories(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error"
         )
+
+
+# --------------- Vector Search Endpoint ---------------

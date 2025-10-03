@@ -6,7 +6,7 @@ import logging
 from datetime import datetime, timedelta
 from uuid import UUID
 
-from app.models.memory_models import Project, UserProject, Memory
+from app.models.memory_models import Project, UserProject, Memory, User
 from app.schemas.memory_schemas import CreateProjectRequest, ProjectResponse
 
 logger = logging.getLogger(__name__)
@@ -25,6 +25,23 @@ class ProjectService:
         Create a new project and assign the creator as owner
         """
         try:
+            # Check if user exists, if not create one for testing
+            user_result = await self.db.execute(
+                select(User).where(User.id == user_id)
+            )
+            existing_user = user_result.scalar_one_or_none()
+            
+            if not existing_user:
+                # Create user for testing purposes
+                new_user = User(
+                    id=user_id,
+                    email=f"user-{user_id}@test.com",
+                    name="Test User"
+                )
+                self.db.add(new_user)
+                await self.db.flush()
+                logger.info(f"Created test user {user_id}")
+            
             # Create project
             new_project = Project(
                 name=request.name,
@@ -33,7 +50,7 @@ class ProjectService:
             )
             
             self.db.add(new_project)
-            await self.db.flush()  # Get the project ID
+            await self.db.flush()  
             
             # Create user-project relationship with owner role
             user_project = UserProject(
@@ -95,7 +112,7 @@ class ProjectService:
     async def get_recent_memories(
         self, 
         project_id: UUID, 
-        user_id: Optional[UUID] = None,  # Make user_id optional for testing
+        user_id: Optional[UUID] = None,  
         limit: int = 10, 
         days: int = 7
     ) -> List[Memory]:

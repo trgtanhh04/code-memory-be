@@ -44,7 +44,7 @@ async def create_project(
         # Create project
         project = await project_service.create_project(
             request=request,
-            # user_id=user_uuid
+            user_id=user_uuid  
         )
         
         # Build response
