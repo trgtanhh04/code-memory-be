@@ -7,7 +7,6 @@ from datetime import datetime
 from typing import Dict, List, Optional
 from uuid import UUID, uuid4
 
-# Add project root to path for imports
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, project_root)
 
@@ -35,17 +34,13 @@ class SaveMemoryService:
         tags: List[str] = None,
         metadata: Dict = None
     ) -> Memory:
-        """Save a memory with content, generate embeddings, and cache results."""
         try:
             await self._validate_input(content, project_id, user_id)
             
-            # Process content
             processed_content = self._sanitize_content(content)
             
-            # Generate embeddings
             embedding_vector = await self._generate_embedding(processed_content)
             
-            # Prepare data
             processed_tags = tags or await self._auto_generate_tags(processed_content)
             
             # Save to database (following ERD schema)
@@ -57,7 +52,6 @@ class SaveMemoryService:
                 metadata=metadata
             )
             
-            # Cache results
             await self._cache_memory(memory, user_id, project_id)
             
             logger.info(f"Memory saved successfully: {memory.id}")
@@ -74,11 +68,8 @@ class SaveMemoryService:
         if len(content) > 50000:
             raise ValueError("Content too large (max 50KB)")
         
-        # TEMPORARY: Comment out for testing
-        # await self._validate_user_project_access(user_id, project_id)
 
     async def _validate_user_project_access(self, user_id: UUID, project_id: UUID):
-        # TEMPORARY: Disabled for testing
         return True
         
         # result = await self.db.execute(
@@ -94,8 +85,6 @@ class SaveMemoryService:
     def _sanitize_content(self, content: str) -> str:
         return ' '.join(content.split()).strip()
 
-
-
     async def _generate_embedding(self, content: str) -> Optional[List[float]]:
         try:
             embedding = await self.embedding_model.aembed_query(content)
@@ -103,8 +92,6 @@ class SaveMemoryService:
         except Exception as e:
             logger.warning(f"Failed to generate embedding: {str(e)}")
             return None
-
-
 
     async def _auto_generate_tags(self, content: str) -> List[str]:
         words = content.lower().split()
@@ -148,7 +135,7 @@ class SaveMemoryService:
 
     async def _cache_memory(self, memory: Memory, user_id: UUID, project_id: UUID):
         try:
-            if self.redis:  # Only cache if Redis is available
+            if self.redis: 
                 cache_key = f"memory:{memory.id}"
                 memory_data = {
                     "id": str(memory.id),

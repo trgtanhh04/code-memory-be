@@ -16,7 +16,6 @@ router = APIRouter(prefix="/api/v1/projects", tags=["projects"])
 async def get_project_service(
     db: AsyncSession = Depends(get_db_session)
 ) -> ProjectService:
-    """Dependency to get ProjectService instance"""
     return ProjectService(db=db)
 
 
@@ -26,29 +25,18 @@ async def create_project(
     user_id: Optional[str] = Header(None, alias="X-User-ID"),
     project_service: ProjectService = Depends(get_project_service)
 ):
-    """
-    Create a new project
-    
-    - **name**: Project name (required, 1-100 chars, must be unique)
-    - **description**: Optional project description (max 1000 chars)
-    - **settings**: Optional project settings as JSON object
-    - **X-User-ID**: User ID header (temporary authentication method)
-    """
     try:
-        # Temporary: Use default user_id if not provided
         if not user_id:
             user_id = "12345678-1234-5678-9012-123456789012"
         
         user_uuid = UUID(user_id)
         
-        # Create project
         project = await project_service.create_project(
             request=request,
             user_id=user_uuid  
         )
         
-        # Build response
-        response = ProjectResponse(
+        project_response = ProjectResponse(
             id=project.id,
             name=project.name,
             description=project.description,
@@ -57,10 +45,11 @@ async def create_project(
             updated_at=project.updated_at
         )
         
-        logger.info(f"Project created successfully via API: {project.id}")
-        return response
+        logger.info(f"Project created successfully: {project.id}")
+        return project_response
         
     except ValueError as e:
+        logger.error(f"Validation error creating project: {e}")
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=str(e)
@@ -69,77 +58,112 @@ async def create_project(
         logger.error(f"Unexpected error creating project: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error while creating project"
+            detail="Failed to create project"
         )
 
 
-@router.get("/", response_model=List[ProjectResponse])
+@router.get("/projects/{project_id}/recent", response_model=list)
+async def get_recent_memories(
+    project_id: UUID,
+    limit: int = 10,
+    days: int = 7,
+    user_id: Optional[str] = Header(None, alias="X-User-ID"),
+    project_service: ProjectService = Depends(get_project_service)
+):
+    try:
+        user_uuid = None
+        if user_id:
+            try:
+                user_uuid = UUID(user_id)
+            except ValueError:
+                pass
+        
+        memories = await project_service.get_recent_memories(
+            project_id=project_id,
+            user_id=user_uuid,
+            limit=min(limit, 50),
+            days=min(days, 30)
+        )
+        
+        memory_list = []
+        for memory in memories:
+            memory_dict = {
+                "id": str(memory.id),
+                "content": memory.content,
+                "summary": memory.summary,
+                "tags": memory.tags or [],
+                "project_id": str(memory.project_id),
+                "created_at": memory.created_at.isoformat(),
+                "updated_at": memory.updated_at.isoformat() if memory.updated_at else None
+            }
+            memory_list.append(memory_dict)
+        
+        logger.info(f"Retrieved {len(memory_list)} recent memories for project {project_id}")
+        return memory_list
+        
+    except ValueError as e:
+        logger.error(f"Get recent memories error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error getting recent memories: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve recent memories"
+        )
+
+
+@router.get("/user/projects", response_model=list)
 async def get_user_projects(
     user_id: Optional[str] = Header(None, alias="X-User-ID"),
     project_service: ProjectService = Depends(get_project_service)
 ):
-    """
-    Get all projects that user has access to
-    
-    - **X-User-ID**: User ID header (temporary authentication method)
-    """
     try:
-        # Temporary: Use default user_id if not provided
         if not user_id:
             user_id = "12345678-1234-5678-9012-123456789012"
         
         user_uuid = UUID(user_id)
         
-        # Get user projects
         projects = await project_service.get_user_projects(user_uuid)
         
-        # Build response
-        project_responses = []
+        project_list = []
         for project in projects:
-            project_responses.append(ProjectResponse(
-                id=project.id,
-                name=project.name,
-                description=project.description,
-                settings=project.settings,
-                created_at=project.created_at,
-                updated_at=project.updated_at
-            ))
+            project_dict = {
+                "id": str(project.id),
+                "name": project.name,
+                "description": project.description,
+                "settings": project.settings,
+                "created_at": project.created_at.isoformat(),
+                "updated_at": project.updated_at.isoformat() if project.updated_at else None
+            }
+            project_list.append(project_dict)
         
-        logger.info(f"Retrieved {len(project_responses)} projects for user {user_uuid}")
-        return project_responses
+        logger.info(f"Retrieved {len(project_list)} projects for user {user_uuid}")
+        return project_list
         
     except Exception as e:
         logger.error(f"Unexpected error getting user projects: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error while getting projects"
+            detail="Failed to retrieve user projects"
         )
 
 
-@router.get("/{project_id}", response_model=ProjectResponse)
-async def get_project_by_id(
+@router.get("/projects/{project_id}", response_model=ProjectResponse)
+async def get_project_details(
     project_id: UUID,
     user_id: Optional[str] = Header(None, alias="X-User-ID"),
     project_service: ProjectService = Depends(get_project_service)
 ):
-    """
-    Get project by ID if user has access
-    
-    - **project_id**: UUID of the project
-    - **X-User-ID**: User ID header (temporary authentication method)
-    """
     try:
-        # Temporary: Use default user_id if not provided
         if not user_id:
             user_id = "12345678-1234-5678-9012-123456789012"
         
         user_uuid = UUID(user_id)
         
-        # Get project
-        project = await project_service.get_project_by_id(
-            project_id=project_id,
-            # user_id=user_uuid
-        )
+        project = await project_service.get_project_by_id(project_id, user_uuid)
         
         if not project:
             raise HTTPException(
@@ -147,8 +171,7 @@ async def get_project_by_id(
                 detail="Project not found or access denied"
             )
         
-        # Build response
-        response = ProjectResponse(
+        project_response = ProjectResponse(
             id=project.id,
             name=project.name,
             description=project.description,
@@ -157,25 +180,14 @@ async def get_project_by_id(
             updated_at=project.updated_at
         )
         
-        logger.info(f"Retrieved project {project_id} for user {user_uuid}")
-        return response
+        logger.info(f"Retrieved project details for {project_id}")
+        return project_response
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Unexpected error getting project: {e}")
+        logger.error(f"Unexpected error getting project details: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error while getting project"
+            detail="Failed to retrieve project details"
         )
-
-
-@router.get("/health")
-async def health_check():
-    """Health check endpoint for project service"""
-    return {
-        "status": "healthy",
-        "service": "project-api",
-        "version": "1.0.0",
-        "features": ["create_project", "get_projects", "get_project_by_id"]
-    }

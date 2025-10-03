@@ -51,8 +51,7 @@ class ProjectService:
             
             self.db.add(new_project)
             await self.db.flush()  
-            
-            # Create user-project relationship with owner role
+
             user_project = UserProject(
                 user_id=user_id,
                 project_id=new_project.id,
@@ -76,9 +75,6 @@ class ProjectService:
             raise Exception("Failed to create project")
 
     async def get_user_projects(self, user_id: UUID) -> List[Project]:
-        """
-        Get all projects that user has access to
-        """
         try:
             result = await self.db.execute(
                 select(Project)
@@ -92,9 +88,6 @@ class ProjectService:
             raise Exception("Failed to retrieve projects")
 
     async def get_project_by_id(self, project_id: UUID, user_id: UUID) -> Optional[Project]:
-        """
-        Get project by ID if user has access
-        """
         try:
             result = await self.db.execute(
                 select(Project)
@@ -116,18 +109,12 @@ class ProjectService:
         limit: int = 10, 
         days: int = 7
     ) -> List[Memory]:
-        """
-        Get recent memories from a project within specified days
-        """
         try:
-            # Temporarily skip user permission check for testing
             if user_id:
-                # First verify user has access to project
                 project = await self.get_project_by_id(project_id, user_id)
                 if not project:
                     raise ValueError("Project not found or access denied")
             else:
-                # For testing - just check if project exists
                 result = await self.db.execute(
                     select(Project).where(Project.id == project_id)
                 )
@@ -135,10 +122,8 @@ class ProjectService:
                 if not project:
                     raise ValueError("Project not found")
             
-            # Calculate date threshold
             date_threshold = datetime.utcnow() - timedelta(days=days)
             
-            # Query recent memories
             result = await self.db.execute(
                 select(Memory)
                 .where(

@@ -4,7 +4,6 @@ import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-# Add project root to Python path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
@@ -15,7 +14,6 @@ from app.db.connect_db import db_manager, initialize_all_databases
 from app.api.memory_routes import router as memory_router
 from app.api.project_routes import router as project_router
 
-# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -47,7 +45,6 @@ async def lifespan(app: FastAPI):
         logger.error(f"Shutdown error: {e}")
 
 
-# Create FastAPI app
 app = FastAPI(
     title="CodeMemory Backend",
     description="An intelligent memory system for AI coding agents",
@@ -63,22 +60,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routers
 app.include_router(memory_router)
 app.include_router(project_router)
 
 
 @app.get("/")
 async def root():
-    """Root endpoint."""
     return {"message": "CodeMemory Backend API", "version": "1.0.0"}
 
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint."""
     try:
-        # Test database connections
         health_status = await db_manager.test_connections()
         
         return {

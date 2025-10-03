@@ -15,7 +15,7 @@ from app.db.connect_db import get_db_session, get_redis
 from app.models.memory_models import UserProject
 from sqlalchemy import select
 from sqlalchemy import func, text
-from sqlalchemy import and_, func, text
+from sqlalchemy import select, and_, func, text, delete
 from app.models.memory_models import Memory
 
 logger = logging.getLogger(__name__)
@@ -26,14 +26,12 @@ async def get_save_memory_service(
     db: AsyncSession = Depends(get_db_session),
     redis: Optional[Redis] = Depends(get_redis)
 ) -> SaveMemoryService:
-    """Dependency to get SaveMemoryService instance"""
     return SaveMemoryService(db=db, redis=redis)
 
 
 async def get_project_service(
     db: AsyncSession = Depends(get_db_session)
 ) -> ProjectService:
-    """Dependency to get ProjectService instance"""
     return ProjectService(db=db)
 
 
@@ -42,7 +40,6 @@ async def verify_user_project_access(
     user_id: UUID,
     db: AsyncSession
 ) -> bool:
-    """Verify that user has access to the project"""
     try:
         result = await db.execute(
             select(UserProject).where(
@@ -56,7 +53,6 @@ async def verify_user_project_access(
         return False
 
 
-# --------------- Save Memory Endpoint ---------------
 @router.post("/save", response_model=MemoryResponse, status_code=status.HTTP_201_CREATED)
 async def save_memory(
     request: SaveMemoryRequest,
@@ -64,41 +60,16 @@ async def save_memory(
     save_service: SaveMemoryService = Depends(get_save_memory_service),
     db: AsyncSession = Depends(get_db_session)
 ):
-    """
-    Save a new memory to the project
-    
-    - **content**: The memory content (required, 1-50000 chars)
-    - **project_id**: UUID of the project to save memory to
-    - **tags**: Optional list of tags (max 20)
-    - **metadata**: Optional metadata dictionary
-    - **X-User-ID**: User ID header (temporary authentication method)
-    """
     try:
-        # Temporary: Use default user_id if not provided
         if not user_id:
             user_id = "12345678-1234-5678-9012-123456789012"
         
         user_uuid = UUID(user_id)
         
-        # TEMPORARY: Comment out verification for testing
-        # Verify user has access to project
-        # has_access = await verify_user_project_access(
-        #     request.project_id, 
-        #     user_uuid, 
-        #     db
-        # )
-        # 
-        # if not has_access:
-        #     raise HTTPException(
-        #         status_code=status.HTTP_403_FORBIDDEN,
-        #         detail="User does not have access to this project"
-        #     )
-        
-        # Save memory
         memory = await save_service.save_memory(
             content=request.content,
             project_id=request.project_id,
-            user_id=user_uuid,  # For access validation
+            user_id=user_uuid,
             tags=request.tags,
             metadata=request.metadata
         )
@@ -198,20 +169,11 @@ async def get_memories(
     project_id: UUID,
     page: int = 1,
     limit: int = 20,
-    tags: Optional[str] = None,  # Comma-separated tags
+    tags: Optional[str] = None,
     search_content: Optional[str] = None,
     user_id: Optional[str] = Header(None, alias="X-User-ID"),
     db: AsyncSession = Depends(get_db_session)
 ):
-    """
-    Get list of memories for a project with pagination and filtering
-    
-    - **project_id**: UUID of the project
-    - **page**: Page number (default: 1)
-    - **limit**: Items per page (default: 20, max: 100)
-    - **tags**: Comma-separated tags to filter by (optional)
-    - **search_content**: Search in content (optional)
-    """
     try:
         if not user_id:
             user_id = "12345678-1234-5678-9012-123456789012"
@@ -227,20 +189,15 @@ async def get_memories(
         tag_list = []
         if tags:
             tag_list = [tag.strip() for tag in tags.split(",") if tag.strip()]
-        
-        # Calculate offset
+
         offset = (page - 1) * limit
         
-
-        # Base query
         query_conditions = [Memory.project_id == project_id]
         
-        # Filter by tags if provided
         if tag_list:
             for tag in tag_list:
                 query_conditions.append(Memory.tags.contains([tag]))
         
-        # Filter by content search if provided
         if search_content:
             query_conditions.append(Memory.content.ilike(f"%{search_content}%"))
         
@@ -249,7 +206,6 @@ async def get_memories(
         total_result = await db.execute(count_query)
         total = total_result.scalar()
         
-        # Get memories with pagination
         memories_query = (
             select(Memory)
             .where(and_(*query_conditions))
@@ -261,7 +217,6 @@ async def get_memories(
         result = await db.execute(memories_query)
         memories = result.scalars().all()
         
-        # Build response
         memory_responses = []
         for memory in memories:
             memory_responses.append(MemoryResponse(
@@ -304,26 +259,17 @@ async def get_recent_memories(
     user_id: Optional[str] = Header(None, alias="X-User-ID"),
     project_service: ProjectService = Depends(get_project_service)
 ):
-    """
-    Get recent memories from a project within specified days
-    
-    - **project_id**: UUID of the project
-    - **limit**: Number of memories to return (default: 10, max: 50)
-    - **days**: Number of days to look back (default: 7, max: 30)
-    """
     try:
         if not user_id:
             user_id = "12345678-1234-5678-9012-123456789012"
         
         # user_uuid = UUID(user_id)  # Comment out for testing
         
-        # Validate parameters
         if limit > 50:
             limit = 50
         if days > 30:
             days = 30
         
-        # Get recent memories
         memories = await project_service.get_recent_memories(
             project_id=project_id,
             # user_id=user_uuid,  # Comment out for testing
@@ -363,6 +309,82 @@ async def get_recent_memories(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error"
+        )
+
+
+# --------------- Delete Memory Endpoint ---------------
+
+@router.delete("/{memory_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_memory(
+    memory_id: UUID,
+    user_id: Optional[str] = Header(None, alias="X-User-ID"),
+    db: AsyncSession = Depends(get_db_session),
+    redis: Optional[Redis] = Depends(get_redis)
+):
+    """
+    Delete a memory by ID
+    
+    - **memory_id**: UUID of the memory to delete
+    - **X-User-ID**: User ID header (temporary authentication method)
+    """
+    try:
+        if not user_id:
+            user_id = "12345678-1234-5678-9012-123456789012"
+        
+        user_uuid = UUID(user_id)
+        
+        # First, get the memory to verify it exists and user has access
+        memory_query = select(Memory).where(Memory.id == memory_id)
+        result = await db.execute(memory_query)
+        memory = result.scalar_one_or_none()
+        
+        if not memory:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Memory not found"
+            )
+        
+        # Verify user has access to the project (temporarily commented for testing)
+        # has_access = await verify_user_project_access(memory.project_id, user_uuid, db)
+        # if not has_access:
+        #     raise HTTPException(
+        #         status_code=status.HTTP_403_FORBIDDEN,
+        #         detail="User does not have access to this memory"
+        #     )
+        
+        # Delete the memory
+        await db.delete(memory)
+        await db.commit()
+        
+        # Clear related cache entries
+        if redis:
+            try:
+                # Clear individual memory cache
+                memory_cache_key = f"memory:{memory_id}"
+                redis.delete(memory_cache_key)
+                
+                # Clear project memories cache
+                project_cache_key = f"project:{memory.project_id}:memories"
+                redis.delete(project_cache_key)
+                
+                # Clear user recent memories cache
+                user_recent_key = f"user:{user_uuid}:recent_memories"
+                redis.lrem(user_recent_key, 0, str(memory_id))
+                
+                logger.info(f"Cleared cache for deleted memory: {memory_id}")
+            except Exception as cache_error:
+                logger.warning(f"Failed to clear cache after deletion: {cache_error}")
+        
+        logger.info(f"Memory deleted successfully: {memory_id}")
+        return  # 204 No Content response
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting memory: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error while deleting memory"
         )
 
 

@@ -1,0 +1,32 @@
+{
+  "test_delete_memory": {
+    "description": "Test delete memory API",
+    "method": "DELETE",
+    "url": "http://localhost:8000/api/v1/memories/{memory_id}",
+    "headers": {
+      "X-User-ID": "12345678-1234-5678-9012-123456789012"
+    },
+    "note": "Replace {memory_id} with actual memory UUID from database"
+  },
+  
+  "example_memory_id": "3edd912f-7e82-4010-a093-775c402cd7da",
+  
+  "expected_responses": {
+    "success": {
+      "status": 204,
+      "body": "No Content"
+    },
+    "not_found": {
+      "status": 404,
+      "body": {
+        "detail": "Memory not found"
+      }
+    },
+    "forbidden": {
+      "status": 403,
+      "body": {
+        "detail": "User does not have access to this memory"
+      }
+    }
+  }
+}

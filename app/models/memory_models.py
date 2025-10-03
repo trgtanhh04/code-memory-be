@@ -4,7 +4,6 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB, ARRAY as PG_ARRAY
 from sqlalchemy.orm import relationship, declarative_base
-# from pgvector.sqlalchemy import Vector  # Comment out for now
 import uuid
 
 Base = declarative_base()
@@ -12,7 +11,6 @@ Base = declarative_base()
 def default_uuid():
     return str(uuid.uuid4())
     
-# ----------- Core Models -----------
 class User(Base):
     __tablename__ = "users"
     id = Column(UUID(as_uuid=True), primary_key=True, default=default_uuid, index=True)
@@ -22,7 +20,6 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # relationships
     projects = relationship("UserProject", back_populates="user")
 
 
@@ -35,7 +32,6 @@ class Project(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # Relationship
     members = relationship("UserProject", back_populates="project")
     memories = relationship("Memory", back_populates="project", cascade="all, delete-orphan")
     search_logs = relationship("SearchLog", back_populates="project", cascade="all, delete-orphan")
@@ -65,7 +61,7 @@ class Memory(Base):
     summary = Column(Text, nullable=True)
     tags = Column(PG_ARRAY(Text), nullable=True)
     meta_data = Column(JSONB, nullable=True)
-    embedding = Column(PG_ARRAY(Float), nullable=True)  # Temporary fallback
+    embedding = Column(PG_ARRAY(Float), nullable=True)
     usage_count = Column(Integer, default=0)
     last_accessed_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
