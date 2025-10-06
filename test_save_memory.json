@@ -1,10 +1,62 @@
-{
-  "content": "FastAPI JWT Authentication Implementation. Here's how to implement secure authentication in FastAPI using JWT tokens with proper validation and error handling.",
-  "project_id": "68ced3c3-3b6b-4c2e-b31a-e4e760f3e648",
-  "tags": ["fastapi", "jwt", "authentication", "security"],
-  "metadata": {
-    "source": "api_test",
-    "difficulty": "intermediate",
-    "language": "python"
+[
+  {
+    "content": "How to create a FastAPI route with dependencies: use Depends(), define Pydantic models, and return response models.",
+    "project_id": "11111111-1111-1111-1111-111111111111",
+    "tags": ["python", "fastapi", "api"],
+    "metadata": {"source": "notes", "difficulty": "easy"}
+  },
+  {
+    "content": "Vue.js watchers and computed: use computed for derived state, watchers for side effects. Example: watch(() => props.x, (newVal) => { ... }).",
+    "project_id": "68ced3c3-3b6b-4c2e-b31a-e4e760f3e648",
+    "tags": ["javascript", "vue", "frontend"],
+    "metadata": {"language": "js", "topic": "vue-lifecycle"}
+  },
+  {
+    "content": "Postgres: use GIN indexes on JSONB for fast key/value lookups. Example: CREATE INDEX ON table USING gin (data jsonb_path_ops);",
+    "project_id": "22222222-2222-2222-2222-222222222222",
+    "tags": ["postgresql", "database", "indexing"],
+    "metadata": {"db_version": "13", "importance": "medium"}
+  },
+  {
+    "content": "Dockerfile best practices: pin base image versions, use multi-stage builds to reduce image size, and avoid running as root.",
+    "project_id": "33333333-3333-3333-3333-333333333333",
+    "tags": ["docker", "devops"],
+    "metadata": {"platform": "linux"}
+  },
+  {
+    "content": "Python: prefer list comprehensions and generator expressions for memory-efficient loops. Use enumerate() for index access instead of range(len()).",
+    "project_id": "11111111-1111-1111-1111-111111111111",
+    "tags": ["python", "performance"],
+    "metadata": {"level": "beginner"}
+  },
+  {
+    "content": "Redis caching strategy: use TTLs for short-lived objects, use cache-aside pattern for reads, and write-through for critical data consistency.",
+    "project_id": "44444444-4444-4444-4444-444444444444",
+    "tags": ["redis", "cache"],
+    "metadata": {"provider": "upstash"}
+  },
+  {
+    "content": "Authentication: implement JWT with proper expiration and refresh tokens. Store revoked tokens in a blacklist or use short-lived tokens plus refresh flow.",
+    "project_id": "55555555-5555-5555-5555-555555555555",
+    "tags": ["security", "auth", "jwt"],
+    "metadata": {"compliance": "basic"}
+  },
+  {
+    "content": "JavaScript: debouncing vs throttling — debounce delays the function until after inactivity; throttle limits calls to once per interval.",
+    "project_id": "68ced3c3-3b6b-4c2e-b31a-e4e760f3e648",
+    "tags": ["javascript", "performance"],
+    "metadata": {"example": "debounce implementation"}
+  },
+  {
+    "content": "Machine Learning: when using embeddings, normalize vectors and consider using cosine similarity. Store embeddings as pgvector for efficient nearest neighbor search.",
+    "project_id": "66666666-6666-6666-6666-666666666666",
+    "tags": ["ml", "embeddings", "vector-db"],
+    "metadata": {"model": "google-text-embedding-004"}
+  },
+  {
+    "content": "Testing: write unit tests for services and integration tests for endpoint flows. Use pytest and testcontainers for DB-backed tests.",
+    "project_id": "11111111-1111-1111-1111-111111111111",
+    "tags": ["testing", "pytest"],
+    "metadata": {"coverage": "recommended"}
   }
-}
+]

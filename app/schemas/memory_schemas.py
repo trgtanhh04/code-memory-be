@@ -45,11 +45,27 @@ class SearchMemoryRequest(BaseModel):
     tags: Optional[List[str]] = None
     limit: int = Field(default=10, ge=1, le=100)
     similarity_threshold: float = Field(default=0.7, ge=0.0, le=1.0)
+    top_k: int = Field(default=10, ge=1, le=50)
 
 
-class SearchMemoryResponse(BaseModel):
-    memory: MemoryResponse
-    similarity_score: float
+class SearchHit(BaseModel):
+    id: UUID
+    content: str
+    summary: Optional[str] = None
+    tags: List[str] = []
+    project_id: UUID
+    created_at: datetime
+    score: float
+    search_type: str
+    rank: Optional[int] = None
+
+
+class SearchResultsResponse(BaseModel):
+    results: List[SearchHit]
+    count: int
+
+    class Config:
+        from_attributes = True
 
 
 class GetMemoriesRequest(BaseModel):

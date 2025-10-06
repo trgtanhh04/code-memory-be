@@ -7,10 +7,12 @@ from uuid import UUID
 
 from app.schemas.memory_schemas import (
     SaveMemoryRequest, MemoryResponse, GetMemoriesResponse, 
-    GetRecentMemoriesRequest, GetRecentMemoriesResponse
+    GetRecentMemoriesRequest, GetRecentMemoriesResponse,
+    SearchMemoryRequest, SearchResultsResponse
 )
 from app.services.save_memory_service import SaveMemoryService
 from app.services.project_service import ProjectService
+from app.services.search_memory_service import SearchMemoryService
 from app.db.connect_db import get_db_session, get_redis
 from app.models.memory_models import UserProject
 from sqlalchemy import select
@@ -33,6 +35,13 @@ async def get_project_service(
     db: AsyncSession = Depends(get_db_session)
 ) -> ProjectService:
     return ProjectService(db=db)
+
+
+async def get_search_service(
+    db: AsyncSession = Depends(get_db_session),
+    redis: Optional[Redis] = Depends(get_redis)
+) -> SearchMemoryService:
+    return SearchMemoryService(db=db, redis=redis)
 
 
 async def verify_user_project_access(
@@ -389,3 +398,40 @@ async def delete_memory(
 
 
 # --------------- Vector Search Endpoint ---------------
+@router.post("/search", response_model=SearchResultsResponse)
+async def search_memories(
+    request: SearchMemoryRequest,
+    user_id: Optional[str] = Header(None, alias="X-User-ID"),
+    search_service: SearchMemoryService = Depends(get_search_service)
+):
+    try:
+        if not user_id:
+            user_id = "12345678-1234-5678-9012-123456789012"
+        query = request.query
+        if not query:
+            raise HTTPException(status_code=422, detail="Missing 'query' in request body")
+
+        project_id = request.project_id
+        tags = request.tags
+        limit = request.limit
+        similarity_threshold = request.similarity_threshold
+        top_k = request.top_k
+
+        project_uuid = project_id
+        
+        results = await search_service.search_memory(
+            query=query,
+            project_id=project_uuid,
+            tags=tags,
+            limit=limit,
+            similarity_threshold=similarity_threshold,
+            top_k=top_k
+        )
+
+        return {"results": results, "count": len(results)}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in search endpoint: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error during search")

@@ -3,6 +3,8 @@ import json
 import logging
 import sys
 import os
+import asyncio
+import re
 from datetime import datetime
 from typing import Dict, List, Optional
 from uuid import UUID, uuid4
@@ -20,6 +22,20 @@ from redis import Redis
 from app.models.memory_models import Memory
 
 logger = logging.getLogger(__name__)
+
+# Ranking and fusion weights (tune these)
+VECTOR_WEIGHT = 0.7
+KEYWORD_WEIGHT = 0.3
+HYBRID_BOOST = 0.1
+TAG_BOOST = 0.15
+PHRASE_BOOST = 0.25
+
+# Basic stopword list to reduce noisy keyword matches
+STOPWORDS = {
+    'the','is','in','at','which','on','and','a','an','how','do','i','to',
+    'for','of','use','uses','using','with','that','this','it','be','are',
+    'was','were','by','from','as','have','has','had','or','but'
+}
 
 class SearchMemoryService:
     def __init__(self, db: AsyncSession, redis: Optional[Redis] = None):
@@ -49,38 +65,46 @@ class SearchMemoryService:
                 logger.info("Returning cached search results")
                 return cached_results
             
-            # Step 2: Decide if semantic search is needed
-            need_semantic = self._need_semantic_search(query)
-            
-            if need_semantic:
-                # Generate embedding for the query
-                query_embedding = await self.embedding_model.embed_text(query)
-            
-                # Perform vector search in the database
-                vector_results = await self._vector_search(
-                    query_embedding=query_embedding,
-                    project_id=project_id,
-                    tags=tags,
-                    limit=limit,
-                    similarity_threshold=similarity_threshold
-                )
-                
-                # Also do keyword search for fusion
-                keyword_results = await self.keyword_search(
-                    keywords=query.split(),
-                    project_id=project_id,
-                    limit=limit
-                )
-                
-                # Combine and rank results (Fusion)
-                results = self._rank_results(vector_results, keyword_results, top_k=top_k)
-            else:
-                # Only keyword search for simple queries
-                results = await self.keyword_search(
-                    keywords=query.split(),
-                    project_id=project_id,
-                    limit=limit
-                )
+            # Always attempt both vector and keyword search.
+            # Try to generate an embedding for semantic search; if embedding
+            # generation fails, _vector_search will return an empty list.
+            try:
+                if hasattr(self.embedding_model, "embed_text"):
+                    maybe = self.embedding_model.embed_text(query)
+                    if asyncio.iscoroutine(maybe):
+                        query_embedding = await maybe
+                    else:
+                        query_embedding = await asyncio.to_thread(self.embedding_model.embed_text, query)
+                elif hasattr(self.embedding_model, "embed_query"):
+                    query_embedding = await asyncio.to_thread(self.embedding_model.embed_query, query)
+                elif hasattr(self.embedding_model, "embed_documents"):
+                    embeddings = await asyncio.to_thread(self.embedding_model.embed_documents, [query])
+                    query_embedding = embeddings[0] if isinstance(embeddings, list) and embeddings else None
+                else:
+                    raise AttributeError("Embedding model has no recognized embed method")
+            except Exception as e:
+                logger.warning(f"Embedding failed, will still run keyword search: {e}")
+                query_embedding = None
+
+            # Run vector search (will be a no-op if query_embedding is None)
+            vector_results = await self._vector_search(
+                query_embedding=query_embedding,
+                project_id=project_id,
+                tags=tags,
+                limit=limit,
+                similarity_threshold=similarity_threshold
+            )
+
+            # Always run keyword search for fusion/ranking (pass full query for phrase boost)
+            keyword_results = await self.keyword_search(
+                keywords=query.split(),
+                project_id=project_id,
+                limit=limit,
+                full_query=query
+            )
+
+            # Combine and rank results (Fusion) — pass request tags for tag-boost
+            results = self._rank_results(vector_results, keyword_results, top_k=top_k, request_tags=tags)
             
             # Cache results for future use
             await self._cache_results(results, query, project_id, tags, limit)
@@ -147,12 +171,12 @@ class SearchMemoryService:
                     
                     if similarity >= similarity_threshold:
                         memory_dict = {
-                            "id": str(memory.id),
+                            "id": memory.id,
                             "content": memory.content,
                             "summary": memory.summary,
                             "tags": memory.tags or [],
-                            "project_id": str(memory.project_id),
-                            "created_at": memory.created_at.isoformat(),
+                            "project_id": memory.project_id,
+                            "created_at": memory.created_at,
                             "score": float(similarity),
                             "search_type": "vector"
                         }
@@ -194,17 +218,20 @@ class SearchMemoryService:
             
             # Calculate cosine similarity
             cosine_sim = dot_product / (magnitude1 * magnitude2)
-            
+
             # Normalize to 0-1 range (cosine can be -1 to 1)
             normalized_sim = (cosine_sim + 1) / 2
-            
+
+            # Clamp to valid range in case of tiny floating-point overshoot
+            normalized_sim = max(0.0, min(normalized_sim, 1.0))
+
             return normalized_sim
             
         except Exception as e:
             logger.error(f"Error calculating cosine similarity: {e}")
             return 0.0
     
-    def _rank_results(self, vector_results: List[Dict], keyword_results: List[Dict], top_k: int = 10) -> List[Dict]:
+    def _rank_results(self, vector_results: List[Dict], keyword_results: List[Dict], top_k: int = 10, request_tags: Optional[List[str]] = None) -> List[Dict]:
         """
         Combine and rank results from vector and keyword search.
         
@@ -217,12 +244,16 @@ class SearchMemoryService:
             # Create combined results dictionary (memory_id -> result)
             combined_results = {}
             
+            # Normalize request tags
+            req_tags_norm = [t.lower().strip() for t in (request_tags or [])]
+
             # Add vector results
             for result in vector_results:
                 memory_id = result["id"]
                 result["vector_score"] = result["score"]
                 result["keyword_score"] = 0.0
-                result["combined_score"] = result["score"] * 0.7  # Vector weight = 0.7
+                # start combined score with vector weight
+                result["combined_score"] = result["score"] * VECTOR_WEIGHT
                 combined_results[memory_id] = result
             
             # Add/update with keyword results
@@ -233,16 +264,19 @@ class SearchMemoryService:
                     existing = combined_results[memory_id]
                     existing["keyword_score"] = result["score"]
                     existing["combined_score"] = (
-                        existing["vector_score"] * 0.7 +  # Vector weight
-                        result["score"] * 0.3 +           # Keyword weight  
-                        0.2                               # Boost for appearing in both
+                        existing["vector_score"] * VECTOR_WEIGHT +  # Vector weight
+                        result["score"] * KEYWORD_WEIGHT +           # Keyword weight  
+                        HYBRID_BOOST                                  # Boost for appearing in both
                     )
+                    # Clamp combined score to 1.0
+                    existing["combined_score"] = min(existing["combined_score"], 1.0)
                     existing["search_type"] = "hybrid"
                 else:
                     # Keyword-only result
                     result["vector_score"] = 0.0
                     result["keyword_score"] = result["score"]
-                    result["combined_score"] = result["score"] * 0.3  # Keyword weight = 0.3
+                    result["combined_score"] = result["score"] * KEYWORD_WEIGHT  # Keyword weight
+                    result["combined_score"] = min(result["combined_score"], 1.0)
                     combined_results[memory_id] = result
             
             # Convert to list and sort by combined score
@@ -251,8 +285,18 @@ class SearchMemoryService:
             
             # Update final scores and limit results
             ranked_results = []
+            # Apply tag-boosts: if any request tag appears in document tags, add TAG_BOOST
+            for res in final_results:
+                doc_tags = [t.lower().strip() for t in (res.get("tags") or [])]
+                if any(rt in doc_tags or any(rt in dt for dt in doc_tags) for rt in req_tags_norm):
+                    res["combined_score"] = min(res["combined_score"] + TAG_BOOST, 1.0)
+
+            # Re-sort after applying tag boosts
+            final_results.sort(key=lambda x: x["combined_score"], reverse=True)
+
             for i, result in enumerate(final_results[:top_k]):
-                result["score"] = result["combined_score"]
+                # Ensure returned score is clamped to [0.0, 1.0]
+                result["score"] = float(max(0.0, min(result["combined_score"], 1.0)))
                 result["rank"] = i + 1
                 # Clean up temporary score fields
                 result.pop("vector_score", None)
@@ -297,29 +341,6 @@ class SearchMemoryService:
             logger.warning(f"Cache check failed: {e}")
             return None
     
-    def _need_semantic_search(self, query: str) -> bool:
-        """Decide if semantic search is needed based on query complexity."""
-        # Simple heuristics for semantic search decision
-        query_lower = query.lower()
-        
-        # Use semantic search for:
-        # 1. Questions (contains question words)
-        question_words = ['how', 'what', 'why', 'when', 'where', 'which', 'who']
-        if any(word in query_lower for word in question_words):
-            return True
-            
-        # 2. Complex phrases (more than 3 words)
-        if len(query.split()) > 3:
-            return True
-            
-        # 3. Conceptual terms
-        conceptual_terms = ['pattern', 'approach', 'method', 'technique', 'strategy', 'concept']
-        if any(term in query_lower for term in conceptual_terms):
-            return True
-            
-        # Otherwise use keyword search
-        return False
-    
     async def _cache_results(
         self, 
         results: List[Dict], 
@@ -352,30 +373,106 @@ class SearchMemoryService:
         self,
         keywords: List[str],
         project_id: Optional[UUID] = None,
-        limit: int = 10
+        limit: int = 10,
+        full_query: Optional[str] = None,
     ) -> List[Dict]:
-        """Search memories based on keywords."""
         try:
             if not keywords:
                 raise ValueError("Keywords list cannot be empty")
-            
-            # Perform keyword search in the database
-            results = await self._keyword_search_db(
-                keywords=keywords,
-                project_id=project_id,
-                limit=limit
+
+            # Tokenize keywords and filter stopwords/short tokens
+            token_segments: List[str] = []
+            for kw in keywords:
+                parts = re.findall(r"\w+", kw.lower() or "")
+                token_segments.extend(parts)
+
+            # remove duplicates, stopwords, and tokens shorter than 3 chars
+            token_segments = [t for t in dict.fromkeys(token_segments) if t and t not in STOPWORDS and len(t) >= 3]
+            if not token_segments:
+                return []
+
+            # Build DB conditions to match any token in content/summary/tags
+            token_conditions = []
+            for token in token_segments:
+                token_like = f"%{token}%"
+                content_match = func.lower(Memory.content).like(token_like)
+                summary_match = func.lower(Memory.summary).like(token_like)
+                tags_match = func.lower(func.array_to_string(Memory.tags, ' ')).like(token_like)
+                token_conditions.append(or_(content_match, summary_match, tags_match))
+
+            where_clause = or_(*token_conditions)
+            if project_id:
+                where_clause = and_(where_clause, Memory.project_id == project_id)
+
+            fetch_limit = max(limit * 5, 50)
+            query = (
+                select(Memory)
+                .where(where_clause)
+                .order_by(Memory.created_at.desc())
+                .limit(fetch_limit)
             )
-            
+
+            result = await self.db.execute(query)
+            memories = result.scalars().all()
+
+            candidates = []
+            for memory in memories:
+                combined = " ".join([
+                    (memory.content or ""),
+                    (memory.summary or ""),
+                    " ".join(memory.tags or [])
+                ]).lower()
+
+                matched = 0
+                for token in token_segments:
+                    if token in combined:
+                        matched += 1
+
+                score = (matched / len(token_segments)) if token_segments else 0.0
+
+                # Require a minimum number of matched tokens or minimum ratio
+                min_matched_tokens = 2
+                min_match_ratio = 0.25
+                if matched < min_matched_tokens and score < min_match_ratio:
+                    # skip weak matches
+                    continue
+
+                phrase_bonus = 0.0
+                if full_query:
+                    fq = full_query.lower().strip()
+                    if fq and fq in combined:
+                        phrase_bonus = PHRASE_BOOST
+
+                final_score = min(score + phrase_bonus, 1.0)
+
+                if score > 0:
+                    memory_dict = {
+                        "id": memory.id,
+                        "content": memory.content,
+                        "summary": memory.summary,
+                        "tags": memory.tags or [],
+                        "project_id": memory.project_id,
+                        "created_at": memory.created_at,
+                        "score": float(final_score),
+                        "search_type": "keyword"
+                    }
+                    candidates.append(memory_dict)
+
+            candidates.sort(key=lambda x: (x["score"], x["created_at"]), reverse=True)
+            results = candidates[:limit]
+
+            logger.info(f"Keyword search found {len(results)} ranked results for tokens: {token_segments}")
             return results
         except Exception as e:
             logger.error(f"Error in keyword search: {e}")
-            raise
+            return []
     
     async def _keyword_search_db(
         self,
         keywords: List[str],
         project_id: Optional[UUID] = None,
-        limit: int = 10
+        limit: int = 10,
+        full_query: Optional[str] = None,
     ) -> List[Dict]:
         """
         Perform keyword search in database.
@@ -387,60 +484,95 @@ class SearchMemoryService:
         4. meta_data (JSONB) - using text search on JSON values
         """
         try:
-            # Build search conditions for each keyword
-            search_conditions = []
-            
-            for keyword in keywords:
-                keyword_lower = f"%{keyword.lower()}%"
-                
-                # Search conditions for each field
-                content_match = func.lower(Memory.content).like(keyword_lower)
-                summary_match = func.lower(Memory.summary).like(keyword_lower) 
-                tags_match = func.lower(func.array_to_string(Memory.tags, ' ')).like(keyword_lower)
-                
-                # Combine all field searches for this keyword
-                keyword_condition = or_(
-                    content_match,
-                    summary_match, 
-                    tags_match
-                )
-                search_conditions.append(keyword_condition)
-            
-            # Combine all keyword conditions (AND logic - all keywords must match)
-            where_clause = and_(*search_conditions)
+            # Tokenize keywords into word segments (remove punctuation) so
+            # 'Vue.js' => ['vue', 'js'] and a query isn't overly strict.
+            token_segments: List[str] = []
+            for kw in keywords:
+                # extract word characters (letters, numbers, _)
+                parts = re.findall(r"\w+", kw.lower() or "")
+                token_segments.extend(parts)
+
+            # remove empty and duplicate tokens
+            token_segments = [t for t in dict.fromkeys(token_segments) if t]
+
+            if not token_segments:
+                return []
+
+            # Build search conditions: match any token in any of the searchable fields
+            token_conditions = []
+            for token in token_segments:
+                token_like = f"%{token}%"
+                content_match = func.lower(Memory.content).like(token_like)
+                summary_match = func.lower(Memory.summary).like(token_like)
+                tags_match = func.lower(func.array_to_string(Memory.tags, ' ')).like(token_like)
+                token_conditions.append(or_(content_match, summary_match, tags_match))
+
+            # Combine token conditions with OR (any token match is sufficient)
+            where_clause = or_(*token_conditions)
             
             # Add project filter if specified
             if project_id:
                 where_clause = and_(where_clause, Memory.project_id == project_id)
             
-            # Build final query
+            # Build final query - fetch more candidates than `limit` so we can
+            # re-rank by token-match score locally. This reduces false positives.
+            fetch_limit = max(limit * 5, 50)
             query = (
                 select(Memory)
                 .where(where_clause)
                 .order_by(Memory.created_at.desc())
-                .limit(limit)
+                .limit(fetch_limit)
             )
             
             # Execute query
             result = await self.db.execute(query)
             memories = result.scalars().all()
             
-            # Convert to dict format for consistency
-            results = []
+            # Score each candidate by token match ratio across content/summary/tags
+            candidates = []
             for memory in memories:
-                memory_dict = {
-                    "id": str(memory.id),
-                    "content": memory.content,
-                    "summary": memory.summary,
-                    "tags": memory.tags or [],
-                    "project_id": str(memory.project_id),
-                    "created_at": memory.created_at.isoformat(),
-                    "score": 1.0,  # Keyword search gives binary relevance
-                    "search_type": "keyword"
-                }
-                results.append(memory_dict)
-            
-            logger.info(f"Keyword search found {len(results)} results for keywords: {keywords}")
+                # Combine searchable fields
+                combined = " ".join([
+                    (memory.content or ""),
+                    (memory.summary or ""),
+                    " ".join(memory.tags or [])
+                ]).lower()
+
+                # Count matched tokens
+                matched = 0
+                for token in token_segments:
+                    if token in combined:
+                        matched += 1
+
+                    score = (matched / len(token_segments)) if token_segments else 0.0
+
+                    # Phrase boost: if the full query (lowercased) appears verbatim in the document
+                    phrase_bonus = 0.0
+                    if full_query:
+                        fq = full_query.lower().strip()
+                        if fq and fq in combined:
+                            phrase_bonus = PHRASE_BOOST
+
+                    final_score = min(score + phrase_bonus, 1.0)
+                if score > 0:
+                    memory_dict = {
+                        "id": memory.id,
+                        "content": memory.content,
+                        "summary": memory.summary,
+                        "tags": memory.tags or [],
+                        "project_id": memory.project_id,
+                        "created_at": memory.created_at,
+                            "score": float(final_score),
+                        "search_type": "keyword"
+                    }
+                    candidates.append(memory_dict)
+
+            # Sort by computed score (desc) then recent
+            candidates.sort(key=lambda x: (x["score"], x["created_at"]), reverse=True)
+
+            results = candidates[:limit]
+
+            logger.info(f"Keyword search found {len(results)} ranked results for tokens: {token_segments}")
             return results
             
         except Exception as e:
