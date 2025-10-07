@@ -3,6 +3,7 @@ from sqlalchemy import (
     UniqueConstraint, func, Boolean
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB, ARRAY as PG_ARRAY
+from pgvector.sqlalchemy import Vector
 from sqlalchemy.orm import relationship, declarative_base
 import uuid
 
@@ -21,6 +22,7 @@ class User(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     projects = relationship("UserProject", back_populates="user")
+    api_keys = relationship("ApiKey", back_populates="user", cascade="all, delete-orphan")
 
 
 class Project(Base):
@@ -35,6 +37,7 @@ class Project(Base):
     members = relationship("UserProject", back_populates="project")
     memories = relationship("Memory", back_populates="project", cascade="all, delete-orphan")
     search_logs = relationship("SearchLog", back_populates="project", cascade="all, delete-orphan")
+    api_keys = relationship("ApiKey", back_populates="project", cascade="all, delete-orphan")
 
 
 class UserProject(Base):
@@ -61,7 +64,7 @@ class Memory(Base):
     summary = Column(Text, nullable=True)
     tags = Column(PG_ARRAY(Text), nullable=True)
     meta_data = Column(JSONB, nullable=True)
-    embedding = Column(PG_ARRAY(Float), nullable=True)
+    embedding = Column(Vector(768), nullable=True)
     usage_count = Column(Integer, default=0)
     last_accessed_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -81,5 +84,21 @@ class SearchLog(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     project = relationship("Project", back_populates="search_logs")
+
+
+class ApiKey(Base):
+    __tablename__ = "api_keys"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=default_uuid, index=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String, nullable=True)
+    hashed_secret = Column(String, nullable=False)
+    project_id = Column(UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=True, index=True)
+    scopes = Column(JSONB, nullable=True)
+    revoked = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    last_used_at = Column(DateTime(timezone=True), nullable=True)
+    # relationships
+    user = relationship("User", back_populates="api_keys")
+    project = relationship("Project", back_populates="api_keys")
 
 

@@ -36,11 +36,8 @@ class SaveMemoryService:
     ) -> Memory:
         try:
             await self._validate_input(content, project_id, user_id)
-            
             processed_content = self._sanitize_content(content)
-            
             embedding_vector = await self._generate_embedding(processed_content)
-            
             processed_tags = tags or await self._auto_generate_tags(processed_content)
             
             # Save to database (following ERD schema)
@@ -68,20 +65,6 @@ class SaveMemoryService:
         if len(content) > 50000:
             raise ValueError("Content too large (max 50KB)")
         
-
-    async def _validate_user_project_access(self, user_id: UUID, project_id: UUID):
-        return True
-        
-        # result = await self.db.execute(
-        #     select(UserProject).where(
-        #         UserProject.user_id == user_id,
-        #         UserProject.project_id == project_id
-        #     )
-        # )
-        # 
-        # if not result.scalar_one_or_none():
-        #     raise PermissionError(f"User has no access to project {project_id}")
-
     def _sanitize_content(self, content: str) -> str:
         return ' '.join(content.split()).strip()
 

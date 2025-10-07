@@ -14,6 +14,7 @@ from app.services.save_memory_service import SaveMemoryService
 from app.services.project_service import ProjectService
 from app.services.search_memory_service import SearchMemoryService
 from app.db.connect_db import get_db_session, get_redis
+from app.api.deps import get_user_from_apikey, require_apikey
 from app.models.memory_models import UserProject
 from sqlalchemy import select
 from sqlalchemy import func, text
@@ -65,16 +66,16 @@ async def verify_user_project_access(
 @router.post("/save", response_model=MemoryResponse, status_code=status.HTTP_201_CREATED)
 async def save_memory(
     request: SaveMemoryRequest,
-    user_id: Optional[str] = Header(None, alias="X-User-ID"), 
     save_service: SaveMemoryService = Depends(get_save_memory_service),
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_db_session),
+    current_user: dict = Depends(require_apikey("save"))
 ):
     try:
-        if not user_id:
-            user_id = "12345678-1234-5678-9012-123456789012"
-        
-        user_uuid = UUID(user_id)
-        
+        # Resolve user from apiKey (required)
+        if not current_user or not current_user.get("user_id"):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing or invalid apiKey")
+        user_uuid = current_user["user_id"]
+
         memory = await save_service.save_memory(
             content=request.content,
             project_id=request.project_id,
@@ -133,23 +134,13 @@ async def health_check():
 @router.get("/projects/{project_id}/count")
 async def get_memory_count(
     project_id: UUID,
-    user_id: Optional[str] = Header(None, alias="X-User-ID"),
     db: AsyncSession = Depends(get_db_session)
 ):
     """Get total memory count for a project"""
     try:
-        if not user_id:
-            user_id = "12345678-1234-5678-9012-123456789012"
-        
-        user_uuid = UUID(user_id)
-        
-        # Verify access
-        # has_access = await verify_user_project_access(project_id, user_uuid, db)
-        # if not has_access:
-        #     raise HTTPException(
-        #         status_code=status.HTTP_403_FORBIDDEN,
-        #         detail="User does not have access to this project"
-        #     )
+        # NOTE: X-User-ID header removed. If authorization is required, add
+        # Depends(require_apikey("search")) to this endpoint and resolve user
+        # from the dependency.
         
         # Count memories
         result = await db.execute(
@@ -180,19 +171,12 @@ async def get_memories(
     limit: int = 20,
     tags: Optional[str] = None,
     search_content: Optional[str] = None,
-    user_id: Optional[str] = Header(None, alias="X-User-ID"),
     db: AsyncSession = Depends(get_db_session)
 ):
     try:
-        if not user_id:
-            user_id = "12345678-1234-5678-9012-123456789012"
-        
-        user_uuid = UUID(user_id)
-        
-        # TEMPORARY: Skip permission check for testing
-        # has_access = await verify_user_project_access(project_id, user_uuid, db)
-        # if not has_access:
-        #     raise HTTPException(status_code=403, detail="Access denied")
+        # NOTE: X-User-ID header removed. This endpoint currently does not
+        # require authentication; add Depends(require_apikey("search")) if you
+        # want to enforce per-user access and perform permission checks.
         
         # Parse tags
         tag_list = []
@@ -265,15 +249,14 @@ async def get_recent_memories(
     project_id: UUID,
     limit: int = 10,
     days: int = 7,
-    user_id: Optional[str] = Header(None, alias="X-User-ID"),
+    current_user: dict = Depends(require_apikey("search")),
     project_service: ProjectService = Depends(get_project_service)
 ):
     try:
-        if not user_id:
-            user_id = "12345678-1234-5678-9012-123456789012"
-        
-        # user_uuid = UUID(user_id)  # Comment out for testing
-        
+        # Resolve user from apiKey (required)
+        if not current_user or not current_user.get("user_id"):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing or invalid apiKey")
+
         if limit > 50:
             limit = 50
         if days > 30:
@@ -326,7 +309,7 @@ async def get_recent_memories(
 @router.delete("/{memory_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_memory(
     memory_id: UUID,
-    user_id: Optional[str] = Header(None, alias="X-User-ID"),
+    current_user: dict = Depends(require_apikey("delete")),
     db: AsyncSession = Depends(get_db_session),
     redis: Optional[Redis] = Depends(get_redis)
 ):
@@ -337,10 +320,10 @@ async def delete_memory(
     - **X-User-ID**: User ID header (temporary authentication method)
     """
     try:
-        if not user_id:
-            user_id = "12345678-1234-5678-9012-123456789012"
-        
-        user_uuid = UUID(user_id)
+        # Resolve user from apiKey (required)
+        if not current_user or not current_user.get("user_id"):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing or invalid apiKey")
+        user_uuid = current_user["user_id"]
         
         # First, get the memory to verify it exists and user has access
         memory_query = select(Memory).where(Memory.id == memory_id)
@@ -376,7 +359,7 @@ async def delete_memory(
                 project_cache_key = f"project:{memory.project_id}:memories"
                 redis.delete(project_cache_key)
                 
-                # Clear user recent memories cache
+                # Clear user recent memories cache (use resolved user_uuid)
                 user_recent_key = f"user:{user_uuid}:recent_memories"
                 redis.lrem(user_recent_key, 0, str(memory_id))
                 
@@ -401,12 +384,14 @@ async def delete_memory(
 @router.post("/search", response_model=SearchResultsResponse)
 async def search_memories(
     request: SearchMemoryRequest,
-    user_id: Optional[str] = Header(None, alias="X-User-ID"),
+    current_user: dict = Depends(require_apikey("search")),
     search_service: SearchMemoryService = Depends(get_search_service)
 ):
     try:
-        if not user_id:
-            user_id = "12345678-1234-5678-9012-123456789012"
+        # Resolve user from apiKey (required) — used for logging/audit
+        if not current_user or not current_user.get("user_id"):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing or invalid apiKey")
+        resolved_user = current_user["user_id"]
         query = request.query
         if not query:
             raise HTTPException(status_code=422, detail="Missing 'query' in request body")
@@ -427,6 +412,12 @@ async def search_memories(
             similarity_threshold=similarity_threshold,
             top_k=top_k
         )
+
+        # Log who performed the search (helps MCP attribution)
+        try:
+            logger.info(f"Search performed by user: {resolved_user} on project: {project_uuid} query='{query}' results={len(results)}")
+        except Exception:
+            pass
 
         return {"results": results, "count": len(results)}
 

@@ -10,6 +10,7 @@ import redis
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy import text
+from sqlalchemy import event
 from typing import AsyncGenerator, Optional
 import logging
 
@@ -53,6 +54,29 @@ class DatabaseManager:
             
             async with self.async_pg_engine.begin() as conn:
                 await conn.execute(text("SELECT 1"))
+
+            # Register pgvector adapter on new connections so asyncpg can decode the
+            # `vector` type. The pgvector package exposes an asyncpg registration
+            # helper we can call when a raw DBAPI connection is created. This
+            # listener will attempt to register the codec but will not fail the
+            # initialization if registration isn't possible (e.g., missing package
+            # in some environments).
+            try:
+                def _register_pgvector(dbapi_conn, connection_record):
+                    try:
+                        # import here to avoid requiring pgvector at module import time
+                        from pgvector.asyncpg import register_vector as _reg
+                        # dbapi_conn should be an asyncpg connection object for the
+                        # asyncpg dialect; attempt registration and ignore failures.
+                        _reg(dbapi_conn)
+                        logger.info("Registered pgvector codec on new DB connection")
+                    except Exception as _e:
+                        logger.debug(f"pgvector registration skipped: {_e}")
+
+                # Listen for new (sync) connections created by the engine's pool.
+                event.listen(self.async_pg_engine.sync_engine, "connect", _register_pgvector)
+            except Exception as e:
+                logger.warning(f"Failed to attach pgvector registration listener: {e}")
             
             logger.info("PostgreSQL connection initialized successfully")
             return True

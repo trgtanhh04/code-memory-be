@@ -13,6 +13,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.db.connect_db import db_manager, initialize_all_databases
 from app.api.memory_routes import router as memory_router
 from app.api.project_routes import router as project_router
+from app.api.apikey_routes import router as apikey_router
+from app.api.user_routes import router as user_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -62,6 +64,8 @@ app.add_middleware(
 
 app.include_router(memory_router)
 app.include_router(project_router)
+app.include_router(apikey_router)
+app.include_router(user_router)
 
 
 @app.get("/")

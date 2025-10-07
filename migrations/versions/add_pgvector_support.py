@@ -26,7 +26,13 @@ def upgrade():
     op.add_column('memories', sa.Column('embedding', Vector(768), nullable=True))
     
     # Create index for fast similarity search
-    op.execute('CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_memories_embedding ON memories USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100)')
+    # "CREATE INDEX CONCURRENTLY" cannot be run inside a transaction block.
+    # Use Alembic's autocommit_block to run it outside the transaction so Postgres accepts it.
+    with op.get_context().autocommit_block():
+        op.execute(
+            'CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_memories_embedding '
+            'ON memories USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100)'
+        )
 
 def downgrade():
     # Drop pgvector index

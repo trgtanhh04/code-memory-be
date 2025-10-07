@@ -1,9 +1,0 @@
-{
-  "name": "AWS Serverless Project",
-  "description": "Project for storing AWS Lambda and serverless architecture knowledge",
-  "settings": {
-    "theme": "aws",
-    "auto_tag": true,
-    "visibility": "private"
-  }
-}

@@ -22,91 +22,190 @@
     }
   },
   {
-    "content": "PostgreSQL database optimization techniques. Index strategies, query performance tuning, and connection pooling for high-performance applications.",
+    "content": "A deep dive into advanced CSS grid layouts for responsive web design. Learn how to create complex grid structures with media queries and auto-placement properties.",
     "project_id": "68ced3c3-3b6b-4c2e-b31a-e4e760f3e648",
-    "tags": ["postgresql", "database", "optimization", "performance", "sql"],
+    "tags": ["css", "grid", "responsive", "web design", "frontend"],
     "metadata": {
-      "source": "database_tutorial",
+      "source": "css_tutorial",
       "difficulty": "advanced",
-      "language": "sql",
-      "type": "optimization"
+      "language": "css",
+      "framework": "none"
     }
   },
   {
-    "content": "Python asyncio and concurrent programming patterns. Understanding event loops, async/await syntax, and building scalable asynchronous applications.",
+    "content": "Building microservices with Spring Boot and Spring Cloud. This tutorial covers service discovery, load balancing, and API gateway implementation with practical examples.",
     "project_id": "68ced3c3-3b6b-4c2e-b31a-e4e760f3e648",
-    "tags": ["python", "asyncio", "concurrency", "async", "performance"],
+    "tags": ["spring", "microservices", "java", "spring boot", "cloud"],
     "metadata": {
-      "source": "python_advanced",
+      "source": "spring_guide",
+      "difficulty": "intermediate",
+      "language": "java",
+      "framework": "spring"
+    }
+  },
+  {
+    "content": "Python for data analysis using Pandas and NumPy. Learn how to manipulate large datasets, clean data, and perform statistical analysis with Python libraries.",
+    "project_id": "68ced3c3-3b6b-4c2e-b31a-e4e760f3e648",
+    "tags": ["python", "data analysis", "pandas", "numpy", "data science"],
+    "metadata": {
+      "source": "python_tutorial",
+      "difficulty": "beginner",
+      "language": "python",
+      "category": "data science"
+    }
+  },
+  {
+    "content": "The basics of Node.js for building web applications. Understand event-driven architecture, the non-blocking I/O model, and how to create a simple REST API.",
+    "project_id": "68ced3c3-3b6b-4c2e-b31a-e4e760f3e648",
+    "tags": ["nodejs", "backend", "javascript", "api", "web development"],
+    "metadata": {
+      "source": "nodejs_tutorial",
+      "difficulty": "beginner",
+      "language": "javascript",
+      "framework": "express"
+    }
+  },
+  {
+    "content": "Designing RESTful APIs with Flask in Python. This tutorial covers URL routing, request handling, and response formatting to build scalable APIs.",
+    "project_id": "68ced3c3-3b6b-4c2e-b31a-e4e760f3e648",
+    "tags": ["flask", "python", "api", "restful", "backend"],
+    "metadata": {
+      "source": "flask_guide",
+      "difficulty": "intermediate",
+      "language": "python",
+      "framework": "flask"
+    }
+  },
+  {
+    "content": "Angular framework for building dynamic single-page applications. Explore directives, services, and how to handle forms, routing, and HTTP requests in Angular.",
+    "project_id": "68ced3c3-3b6b-4c2e-b31a-e4e760f3e648",
+    "tags": ["angular", "frontend", "javascript", "spa", "web development"],
+    "metadata": {
+      "source": "angular_tutorial",
+      "difficulty": "beginner",
+      "language": "typescript",
+      "framework": "angular"
+    }
+  },
+  {
+    "content": "Deep learning with TensorFlow. Learn how to create neural networks, optimize them with backpropagation, and train models for image and text recognition.",
+    "project_id": "68ced3c3-3b6b-4c2e-b31a-e4e760f3e648",
+    "tags": ["tensorflow", "deep learning", "neural networks", "python", "machine learning"],
+    "metadata": {
+      "source": "tensorflow_guide",
       "difficulty": "advanced",
       "language": "python",
-      "topic": "concurrency"
+      "category": "machine learning"
     }
   },
   {
-    "content": "Redis caching strategies for web applications. Implement cache-aside, write-through, and write-behind patterns for optimal performance and data consistency.",
+    "content": "Introduction to Docker and Kubernetes for container orchestration. Learn how to deploy, scale, and manage containerized applications in production environments.",
     "project_id": "68ced3c3-3b6b-4c2e-b31a-e4e760f3e648",
-    "tags": ["redis", "caching", "performance", "database", "architecture"],
+    "tags": ["docker", "kubernetes", "devops", "containers", "deployment"],
     "metadata": {
-      "source": "caching_guide",
+      "source": "docker_kubernetes_guide",
       "difficulty": "intermediate",
-      "language": "redis",
-      "pattern": "caching"
-    }
-  },
-  {
-    "content": "Kubernetes deployment and service management. Learn how to deploy applications using pods, services, ingress controllers, and manage scaling with HPA.",
-    "project_id": "68ced3c3-3b6b-4c2e-b31a-e4e760f3e648",
-    "tags": ["kubernetes", "k8s", "deployment", "devops", "orchestration"],
-    "metadata": {
-      "source": "k8s_tutorial",
-      "difficulty": "advanced",
       "language": "yaml",
-      "platform": "kubernetes"
+      "category": "infrastructure"
     }
   },
   {
-    "content": "JWT token security and validation in microservices. Implement token-based authentication with refresh tokens, blacklisting, and cross-service validation.",
+    "content": "Building web applications with Flask and MongoDB. This tutorial focuses on building a full-stack web application using Flask as the backend and MongoDB for data storage.",
     "project_id": "68ced3c3-3b6b-4c2e-b31a-e4e760f3e648",
-    "tags": ["jwt", "security", "authentication", "microservices", "token"],
+    "tags": ["flask", "mongodb", "python", "backend", "web development"],
     "metadata": {
-      "source": "security_guide",
+      "source": "flask_mongodb_tutorial",
+      "difficulty": "beginner",
+      "language": "python",
+      "framework": "flask"
+    }
+  },
+  {
+    "content": "Exploring advanced JavaScript concepts: closures, promises, and async/await. Learn how to handle asynchronous operations and improve code readability in modern JavaScript.",
+    "project_id": "68ced3c3-3b6b-4c2e-b31a-e4e760f3e648",
+    "tags": ["javascript", "async", "closures", "promises", "frontend"],
+    "metadata": {
+      "source": "javascript_advanced",
       "difficulty": "intermediate",
-      "language": "jwt",
-      "architecture": "microservices"
+      "language": "javascript",
+      "framework": "none"
     }
   },
   {
-    "content": "TypeScript advanced types and generics. Master conditional types, mapped types, utility types, and build type-safe APIs with complex generic constraints.",
+    "content": "Introduction to CI/CD pipelines with Jenkins for automating build, test, and deployment processes. Learn how to set up pipelines and integrate with version control systems.",
     "project_id": "68ced3c3-3b6b-4c2e-b31a-e4e760f3e648",
-    "tags": ["typescript", "generics", "types", "advanced", "type-safety"],
+    "tags": ["jenkins", "ci/cd", "devops", "automation", "deployment"],
     "metadata": {
-      "source": "typescript_advanced",
-      "difficulty": "advanced",
-      "language": "typescript",
-      "topic": "type-system"
+      "source": "jenkins_tutorial",
+      "difficulty": "intermediate",
+      "language": "groovy",
+      "category": "devops"
     }
   },
   {
-    "content": "GraphQL API design and implementation. Build efficient GraphQL schemas, resolvers, and implement DataLoader pattern for N+1 query optimization.",
+    "content": "Mastering SQL queries: A comprehensive guide to SELECT, JOIN, and GROUP BY statements. Learn how to write efficient SQL queries to retrieve and manipulate data.",
     "project_id": "68ced3c3-3b6b-4c2e-b31a-e4e760f3e648",
-    "tags": ["graphql", "api", "schema", "resolvers", "optimization"],
+    "tags": ["sql", "database", "query", "data manipulation", "backend"],
+    "metadata": {
+      "source": "sql_guide",
+      "difficulty": "beginner",
+      "language": "sql",
+      "category": "database"
+    }
+  },
+  {
+    "content": "Building REST APIs with Node.js and Express. This guide covers the fundamentals of building RESTful APIs and integrating them with a database using Node.js and Express.",
+    "project_id": "68ced3c3-3b6b-4c2e-b31a-e4e760f3e648",
+    "tags": ["nodejs", "express", "api", "restful", "backend"],
+    "metadata": {
+      "source": "nodejs_express_tutorial",
+      "difficulty": "beginner",
+      "language": "javascript",
+      "framework": "express"
+    }
+  },
+  {
+    "content": "Exploring the fundamentals of GraphQL for building flexible and efficient APIs. Learn how to define schemas, resolve queries, and manage mutations in a GraphQL API.",
+    "project_id": "68ced3c3-3b6b-4c2e-b31a-e4e760f3e648",
+    "tags": ["graphql", "api", "web development", "backend", "nodejs"],
     "metadata": {
       "source": "graphql_tutorial",
       "difficulty": "intermediate",
-      "language": "graphql",
-      "type": "api"
+      "language": "javascript",
+      "framework": "graphql"
     }
   },
   {
-    "content": "Machine Learning model deployment with MLOps. Implement CI/CD pipelines for ML models using Docker, Kubernetes, and monitoring with MLflow.",
+    "content": "Advanced Java programming techniques. Learn how to implement multithreading, synchronization, and design patterns in Java to build high-performance applications.",
     "project_id": "68ced3c3-3b6b-4c2e-b31a-e4e760f3e648",
-    "tags": ["mlops", "machine-learning", "deployment", "docker", "monitoring"],
+    "tags": ["java", "multithreading", "performance", "backend", "programming"],
     "metadata": {
-      "source": "mlops_guide",
+      "source": "java_advanced",
       "difficulty": "advanced",
+      "language": "java",
+      "framework": "none"
+    }
+  },
+  {
+    "content": "Building a simple e-commerce website using Django and Python. This tutorial guides you through creating an online store with payment integration and product catalog.",
+    "project_id": "68ced3c3-3b6b-4c2e-b31a-e4e760f3e648",
+    "tags": ["django", "python", "e-commerce", "web development", "backend"],
+    "metadata": {
+      "source": "django_tutorial",
+      "difficulty": "beginner",
       "language": "python",
-      "domain": "machine-learning"
+      "framework": "django"
+    }
+  },
+  {
+    "content": "Implementing serverless architectures with AWS Lambda. Learn how to build scalable, event-driven applications using AWS Lambda, API Gateway, and DynamoDB.",
+    "project_id": "68ced3c3-3b6b-4c2e-b31a-e4e760f3e648",
+    "tags": ["aws", "serverless", "lambda", "cloud", "infrastructure"],
+    "metadata": {
+      "source": "aws_serverless_guide",
+      "difficulty": "intermediate",
+      "language": "python",
+      "category": "cloud"
     }
   }
 ]
