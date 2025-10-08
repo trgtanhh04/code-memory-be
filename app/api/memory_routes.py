@@ -13,8 +13,10 @@ from app.schemas.memory_schemas import (
 from app.services.save_memory_service import SaveMemoryService
 from app.services.project_service import ProjectService
 from app.services.search_memory_service import SearchMemoryService
-from app.db.connect_db import get_db_session, get_redis
-from app.api.deps import get_user_from_apikey, require_apikey
+from app.db.connect_db import get_db_session, get_redis, db_manager
+import uuid
+import json
+from app.api.deps import require_apikey
 from app.models.memory_models import UserProject
 from sqlalchemy import select
 from sqlalchemy import func, text
@@ -94,7 +96,7 @@ async def save_memory(
             project_id=memory.project_id,
             meta_data=memory.meta_data or {},
             usage_count=memory.usage_count,
-            embedding_dimensions=len(memory.embedding) if memory.embedding else None
+            embedding_dimensions=len(memory.embedding) if memory.embedding is not None else None
         )
         
         logger.info(f"Memory saved successfully via API: {memory.id}")
@@ -221,7 +223,7 @@ async def get_memories(
                 project_id=memory.project_id,
                 meta_data=memory.meta_data or {},
                 usage_count=memory.usage_count,
-                embedding_dimensions=len(memory.embedding) if memory.embedding else None
+                embedding_dimensions=len(memory.embedding) if memory.embedding is not None else None
             ))
         
         total_pages = (total + limit - 1) // limit
@@ -281,7 +283,7 @@ async def get_recent_memories(
                 project_id=memory.project_id,
                 meta_data=memory.meta_data or {},
                 usage_count=memory.usage_count,
-                embedding_dimensions=len(memory.embedding) if memory.embedding else None
+                embedding_dimensions=len(memory.embedding) if memory.embedding is not None else None
             ))
         
         return GetRecentMemoriesResponse(
@@ -413,11 +415,54 @@ async def search_memories(
             top_k=top_k
         )
 
-        # Log who performed the search (helps MCP attribution)
         try:
             logger.info(f"Search performed by user: {resolved_user} on project: {project_uuid} query='{query}' results={len(results)}")
         except Exception:
             pass
+
+        try:
+            try:
+                log_session = await db_manager.get_async_session()
+            except Exception as e:
+                logger.debug(f"Could not create logging session: {e}")
+                log_session = None
+
+            if log_session is not None:
+                try:
+                    log_id = str(uuid.uuid4())
+                    await log_session.execute(
+                        text(
+                            "INSERT INTO search_logs (id, project_id, query, filters, results, created_at) "
+                            "VALUES (:id, :project_id, :query, :filters, :results, now())"
+                        ),
+                        {
+                            "id": log_id,
+                            "project_id": str(project_uuid) if project_uuid else None,
+                            "query": query,
+                            "filters": json.dumps({"tags": tags} if tags else {}, default=str),
+                            "results": json.dumps(
+                                [
+                                    {"id": str(r.get("id")), "score": r.get("score"), "search_type": r.get("search_type")} for r in results
+                                ],
+                                default=str,
+                            ),
+                        },
+                    )
+                    await log_session.commit()
+                except Exception as e:
+                    logger.debug(f"Failed to write search_log (best-effort): {e}")
+                    try:
+                        await log_session.rollback()
+                    except Exception:
+                        pass
+                finally:
+                    try:
+                        await log_session.close()
+                    except Exception:
+                        pass
+        except Exception:
+            # Swallow any unexpected errors in logging; search should still return results
+            logger.debug("Unexpected error in search logging block")
 
         return {"results": results, "count": len(results)}
 
