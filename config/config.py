@@ -6,7 +6,8 @@ load_dotenv()
 # Database Configuration
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./test.db")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+ANON_KEY = os.getenv("ANON_KEY")
+SERVICE_ROLE_KEY = os.getenv("SERVICE_ROLE_KEY")
 
 # Redis Configuration - Upstash Redis with SSL support
 REDIS_URL = os.getenv("REDIS_URL")

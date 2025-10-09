@@ -9,6 +9,9 @@ from pydantic import BaseModel, EmailStr
 from sqlalchemy.exc import IntegrityError
 import traceback
 
+
+from app.services.supabase_admin import create_supabase_user
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/users", tags=["users"])
@@ -17,7 +20,6 @@ router = APIRouter(prefix="/api/v1/users", tags=["users"])
 class CreateUserRequest(BaseModel):
     email: EmailStr
     name: str | None = None
-    # id is generated server-side. Clients should NOT supply an id.
 
 
 class CreateUserResponse(BaseModel):
@@ -33,7 +35,15 @@ async def create_user(
 ):
     try:
         user_id = uuid4()
-        new_user = User(id=user_id, email=req.email, name=req.name)
+
+        try:
+            supabase_uid = await create_supabase_user(req.email, name=req.name)
+        except Exception as e:
+            logger.warning(f"Supabase admin create failed: {e}")
+            supabase_uid = None
+
+        # create local user
+        new_user = User(id=user_id, email=req.email, name=req.name, supabase_user_id=supabase_uid)
         db.add(new_user)
         await db.flush()
 

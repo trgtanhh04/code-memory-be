@@ -16,6 +16,8 @@ class User(Base):
     __tablename__ = "users"
     id = Column(UUID(as_uuid=True), primary_key=True, default=default_uuid, index=True)
     email = Column(String, unique=True, nullable=False)
+    # Optional mapping to Supabase auth user id (sub)
+    supabase_user_id = Column(String, unique=True, nullable=True, index=True)
     name = Column(String, nullable=True)
     preferences = Column(JSONB, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
