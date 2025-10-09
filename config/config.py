@@ -8,6 +8,7 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./test.db")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 ANON_KEY = os.getenv("ANON_KEY")
 SERVICE_ROLE_KEY = os.getenv("SERVICE_ROLE_KEY")
+SUPABASE_WEBHOOK_SECRET = os.getenv("SUPABASE_WEBHOOK_SECRET")
 
 # Redis Configuration - Upstash Redis with SSL support
 REDIS_URL = os.getenv("REDIS_URL")
