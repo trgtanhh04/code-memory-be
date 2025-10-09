@@ -15,6 +15,7 @@ from app.api.memory_routes import router as memory_router
 from app.api.project_routes import router as project_router
 from app.api.apikey_routes import router as apikey_router
 from app.api.user_routes import router as user_router
+from app.api.supabase_webhooks import router as supabase_webhook_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -66,6 +67,8 @@ app.include_router(memory_router)
 app.include_router(project_router)
 app.include_router(apikey_router)
 app.include_router(user_router)
+app.include_router(supabase_webhook_router)
+
 
 
 @app.get("/")
