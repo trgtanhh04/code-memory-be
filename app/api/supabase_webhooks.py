@@ -26,13 +26,21 @@ async def user_created(
 
         # signature header optional depending on config
         signature = request.headers.get("x-supabase-signature") or request.headers.get("X-Supabase-Signature")
+        static_secret = request.headers.get("x-webhook-secret") or request.headers.get("X-Webhook-Secret")
+
+        # If SUPABASE_WEBHOOK_SECRET is set, accept either:
+        # - X-Webhook-Secret matching the configured secret (static header added via Supabase UI), or
+        # - X-Supabase-Signature HMAC signature computed by a forwarder/edge function
         if SUPABASE_WEBHOOK_SECRET:
-            if not signature:
-                logger.warning("Missing signature header for webhook")
-                raise HTTPException(status_code=400, detail="Missing signature header")
-            if not verify_signature(signature, body):
-                logger.warning("Invalid webhook signature")
-                raise HTTPException(status_code=403, detail="Invalid signature")
+            if static_secret and static_secret == SUPABASE_WEBHOOK_SECRET:
+                logger.debug("Received static webhook secret header; accepted")
+            else:
+                if not signature:
+                    logger.warning("Missing signature header for webhook")
+                    raise HTTPException(status_code=400, detail="Missing signature header")
+                if not verify_signature(signature, body):
+                    logger.warning("Invalid webhook signature")
+                    raise HTTPException(status_code=403, detail="Invalid signature")
         else:
             logger.debug("SUPABASE_WEBHOOK_SECRET not set; skipping signature verification")
 
