@@ -30,11 +30,11 @@ def verify_secret(secret: str, hashed: str) -> bool:
                 return pwd_ctx.verify(truncated, hashed)
             except Exception:
                 return False
+        # Re-raise other ValueErrors so caller can handle unexpected cases
         raise
     except AttributeError as e:
         # This can happen if the bcrypt backend is not properly installed
         # or is an incompatible build. Log and fall back to a safe failure.
-        # The caller should handle a False return (authentication failure).
         try:
             import logging
             logger = logging.getLogger(__name__)
@@ -42,9 +42,34 @@ def verify_secret(secret: str, hashed: str) -> bool:
             # requires migration. We cannot verify bcrypt hashes reliably
             # if the bcrypt C backend is broken in the environment.
             if isinstance(hashed, str) and hashed.startswith(('$2b$', '$2a$', '$2y$')):
-                logger.error("Detected legacy bcrypt hash but bcrypt backend is unavailable; consider migrating this API key to pbkdf2_sha256: %s", e)
+                logger.error(
+                    "Detected legacy bcrypt hash but bcrypt backend is unavailable; consider migrating this API key to pbkdf2_sha256: %s",
+                    e,
+                )
             else:
                 logger.error("Password verify failed due to bcrypt/backend issue: %s", e)
+        except Exception:
+            pass
+        return False
+    except Exception as e:
+        # Handle passlib UnknownHashError and any other unexpected exceptions
+        try:
+            from passlib.exc import UnknownHashError
+            import logging
+            logger = logging.getLogger(__name__)
+            if isinstance(e, UnknownHashError):
+                logger.warning(
+                    "Unknown hash format for api key verification; returning False. Hash sample: %s",
+                    (hashed[:16] + '...') if isinstance(hashed, str) else 'n/a',
+                )
+                return False
+        except Exception:
+            pass
+        # Generic fallback: log and return False to avoid raising to request layer
+        try:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.exception("Unexpected error during secret verification: %s", e)
         except Exception:
             pass
         return False
