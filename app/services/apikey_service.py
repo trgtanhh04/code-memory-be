@@ -6,7 +6,7 @@ from uuid import UUID, uuid4
 
 from app.models.memory_models import ApiKey
 
-pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_ctx = CryptContext(schemes=["pbkdf2_sha256", "bcrypt"], deprecated="auto")
 
 def _gen_secret(nbytes: int = 24) -> str:
     return secrets.token_urlsafe(nbytes)
@@ -17,7 +17,31 @@ def hash_secret(secret: str) -> str:
 
 
 def verify_secret(secret: str, hashed: str) -> bool:
-    return pwd_ctx.verify(secret, hashed)
+    try:
+        return pwd_ctx.verify(secret, hashed)
+    except ValueError as e:
+        # bcrypt backend can raise ValueError when password > 72 bytes.
+        msg = str(e)
+        if "72" in msg or "longer than 72" in msg:
+            try:
+                # Truncate to bcrypt's 72-byte limit and retry. This mirrors
+                # bcrypt's historical behavior of truncating passwords.
+                truncated = secret.encode()[:72].decode(errors="ignore")
+                return pwd_ctx.verify(truncated, hashed)
+            except Exception:
+                return False
+        raise
+    except AttributeError as e:
+        # This can happen if the bcrypt backend is not properly installed
+        # or is an incompatible build. Log and fall back to a safe failure.
+        # The caller should handle a False return (authentication failure).
+        try:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error("Password verify failed due to bcrypt backend issue: %s", e)
+        except Exception:
+            pass
+        return False
 
 async def create_apikey(db: AsyncSession, user_id: UUID, name: str = None, project_id: UUID = None, scopes: list = None):
     secret = _gen_secret()
