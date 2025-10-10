@@ -6,7 +6,7 @@ from uuid import UUID, uuid4
 
 from app.models.memory_models import ApiKey
 
-pwd_ctx = CryptContext(schemes=["pbkdf2_sha256", "bcrypt"], deprecated="auto")
+pwd_ctx = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
 def _gen_secret(nbytes: int = 24) -> str:
     return secrets.token_urlsafe(nbytes)
@@ -38,7 +38,13 @@ def verify_secret(secret: str, hashed: str) -> bool:
         try:
             import logging
             logger = logging.getLogger(__name__)
-            logger.error("Password verify failed due to bcrypt backend issue: %s", e)
+            # If the stored hash looks like a bcrypt hash, indicate that it
+            # requires migration. We cannot verify bcrypt hashes reliably
+            # if the bcrypt C backend is broken in the environment.
+            if isinstance(hashed, str) and hashed.startswith(('$2b$', '$2a$', '$2y$')):
+                logger.error("Detected legacy bcrypt hash but bcrypt backend is unavailable; consider migrating this API key to pbkdf2_sha256: %s", e)
+            else:
+                logger.error("Password verify failed due to bcrypt/backend issue: %s", e)
         except Exception:
             pass
         return False
