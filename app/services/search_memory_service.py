@@ -54,6 +54,17 @@ class SearchMemoryService:
         user_id: Optional[UUID] = None
     ) -> List[Dict]:
         try:
+            # Ensure session is in a clean state before starting. If a previous
+            # error left the transaction aborted, subsequent DB commands will
+            # raise InFailedSQLTransactionError. Best-effort rollback here clears
+            # that state so this request can proceed.
+            try:
+                await self.db.rollback()
+            except Exception:
+                # Not fatal; if rollback fails we'll continue and let individual
+                # DB calls handle their own errors. Keep this at debug level.
+                logger.debug("Initial rollback (cleanup) failed or no active transaction")
+
             if not query or not query.strip():
                 raise ValueError("Query cannot be empty")
             query = query.strip()
