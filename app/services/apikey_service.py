@@ -19,14 +19,13 @@ def hash_secret(secret: str) -> str:
 def verify_secret(secret: str, hashed: str) -> bool:
     return pwd_ctx.verify(secret, hashed)
 
-async def create_apikey(db: AsyncSession, user_id: UUID, name: str = None, project_id: UUID = None, scopes: list = None):
+async def create_apikey(db: AsyncSession, user_id: UUID, name: str = None, scopes: list = None):
     secret = _gen_secret()
     api_key = ApiKey(
         id=uuid4(),
         user_id=user_id,
         name=name,
         hashed_secret=hash_secret(secret),
-        project_id=project_id,
         scopes=scopes or []
     )
     db.add(api_key)

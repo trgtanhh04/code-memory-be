@@ -13,7 +13,6 @@ router = APIRouter(prefix="/api/v1/apikeys", tags=["apikeys"])
 
 class CreateApiKeyRequest(BaseModel):
     name: Optional[str] = None
-    project_id: Optional[UUID] = None
     scopes: Optional[list] = None
 
 
@@ -24,19 +23,17 @@ async def create_key(req: CreateApiKeyRequest, user_id: Optional[str] = Header(N
     
     - **user_id**: ID of the user creating the API key
     - **name**: Name of the API key
-    - **project_id**: ID of the project the API key is associated with
     """
     if not user_id:
         raise HTTPException(status_code=401, detail="Missing X-User-ID (use real auth in production)")
     user_uuid = UUID(user_id)
-    api_key_obj, full_key = await create_apikey(db=db, user_id=user_uuid, name=req.name, project_id=req.project_id, scopes=req.scopes)
+    api_key_obj, full_key = await create_apikey(db=db, user_id=user_uuid, name=req.name, scopes=req.scopes)
     return {"id": str(api_key_obj.id), "api_key": full_key}
 
 
 class ApiKeyResponse(BaseModel):
     id: UUID
     name: Optional[str] = None
-    project_id: Optional[UUID] = None
     scopes: Optional[list] = None
     revoked: bool
     created_at: Optional[str] = None
@@ -63,7 +60,6 @@ async def list_keys(
             ApiKeyResponse(
                 id=r.id,
                 name=r.name,
-                project_id=r.project_id,
                 scopes=r.scopes,
                 revoked=bool(r.revoked),
                 created_at=r.created_at.isoformat() if r.created_at else None,

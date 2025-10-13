@@ -39,8 +39,6 @@ class Project(Base):
     members = relationship("UserProject", back_populates="project")
     memories = relationship("Memory", back_populates="project", cascade="all, delete-orphan")
     search_logs = relationship("SearchLog", back_populates="project", cascade="all, delete-orphan")
-    api_keys = relationship("ApiKey", back_populates="project", cascade="all, delete-orphan")
-
 
 class UserProject(Base):
     __tablename__ = "user_projects"
@@ -94,13 +92,12 @@ class ApiKey(Base):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String, nullable=True)
     hashed_secret = Column(String, nullable=False)
-    project_id = Column(UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=True, index=True)
     scopes = Column(JSONB, nullable=True)
     revoked = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     last_used_at = Column(DateTime(timezone=True), nullable=True)
     # relationships
     user = relationship("User", back_populates="api_keys")
-    project = relationship("Project", back_populates="api_keys")
+ 
 
 
