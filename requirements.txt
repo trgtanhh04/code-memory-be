@@ -49,4 +49,4 @@ pgvector==0.2.4
 fastapi-cors==0.0.6
 
 #r  repomix
-rerepomix==0.3.4
+repomix==0.3.4
