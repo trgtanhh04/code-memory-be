@@ -3,20 +3,25 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import logging
 from typing import List, Optional
 from uuid import UUID
-
-from app.schemas.memory_schemas import CreateProjectRequest, ProjectResponse
+from fastapi import Path
+from app.schemas.memory_schemas import CreateProjectRequest, ProjectResponse, UpdateProjectRequest
 from app.services.project_service import ProjectService
+from app.services.repomix_service import RepoAnalyzerService
 from app.db.connect_db import get_db_session
+
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/projects", tags=["projects"])
 
 
+repo_analyzer = RepoAnalyzerService()
+
 async def get_project_service(
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_db_session),
 ) -> ProjectService:
-    return ProjectService(db=db)
+    return ProjectService(db=db, repo_analyzer=repo_analyzer)
+
 
 
 @router.post("/create", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
@@ -40,6 +45,7 @@ async def create_project(
             id=project.id,
             name=project.name,
             description=project.description,
+            technologies=project.technologies,
             settings=project.settings,
             created_at=project.created_at,
             updated_at=project.updated_at
@@ -60,9 +66,61 @@ async def create_project(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create project"
         )
+    
 
 
-@router.get("/projects/{project_id}/recent", response_model=list)
+@router.patch("/{project_id}", response_model=ProjectResponse)
+async def edit_project(
+    request: UpdateProjectRequest,
+    user_id: Optional[str] = Header(None, alias="X-User-ID"),
+    project_service: ProjectService = Depends(get_project_service),
+    project_id: UUID = Path(...),
+):
+    try:
+        if not user_id:
+            user_id = "12345678-1234-5678-9012-123456789012"
+
+        user_uuid = UUID(user_id)
+        
+        project = await project_service.edit_project(
+            project_id=project_id,
+            request=request,
+            user_id=user_uuid
+        )
+        
+        project_response = ProjectResponse(
+            id=project.id,
+            name=project.name,
+            description=project.description,
+            is_active=project.is_active,
+            repo_url=project.repo_url,
+            technologies=project.technologies,
+            memories_count=project.memories_count,
+            members_count=project.members_count,
+            last_active_at=project.last_active_at,
+            settings=project.settings,
+            created_at=project.created_at,
+            updated_at=project.updated_at
+        )
+        
+        logger.info(f"Project edited successfully: {project.id}")
+        return project_response
+        
+    except ValueError as e:
+        logger.error(f"Validation error editing project: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(e)
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error editing project: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to edit project"
+        )
+
+
+@router.get("/{project_id}/recent", response_model=list)
 async def get_recent_memories(
     project_id: UUID,
     limit: int = 10,
@@ -115,7 +173,7 @@ async def get_recent_memories(
         )
 
 
-@router.get("/user/projects", response_model=list)
+@router.get("/user", response_model=list)
 async def get_user_projects(
     user_id: Optional[str] = Header(None, alias="X-User-ID"),
     project_service: ProjectService = Depends(get_project_service)
@@ -150,8 +208,7 @@ async def get_user_projects(
             detail="Failed to retrieve user projects"
         )
 
-
-@router.get("/projects/{project_id}", response_model=ProjectResponse)
+@router.get("/{project_id}", response_model=ProjectResponse)
 async def get_project_details(
     project_id: UUID,
     user_id: Optional[str] = Header(None, alias="X-User-ID"),
@@ -175,6 +232,12 @@ async def get_project_details(
             id=project.id,
             name=project.name,
             description=project.description,
+            is_active=project.is_active,
+            repo_url=project.repo_url,
+            technologies=project.technologies,
+            memories_count=project.memories_count,
+            members_count=project.members_count,
+            last_active_at=project.last_active_at,
             settings=project.settings,
             created_at=project.created_at,
             updated_at=project.updated_at

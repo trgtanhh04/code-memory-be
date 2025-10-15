@@ -16,21 +16,17 @@ from app.models.memory_models import Memory
 from collections import Counter
 
 
-# Đặt project root vào đường dẫn để import
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, project_root)
 
-# Cấu hình logging
 logger = logging.getLogger(__name__)
 
-# Các tham số cấu hình
 VECTOR_WEIGHT = 0.7
 KEYWORD_WEIGHT = 0.3
 HYBRID_BOOST = 0.1
 TAG_BOOST = 0.15
 PHRASE_BOOST = 0.25
 
-# Danh sách stopword cơ bản để giảm nhiễu
 STOPWORDS = {
     'the', 'is', 'in', 'at', 'which', 'on', 'and', 'a', 'an', 'how', 'do', 'i', 'to',
     'for', 'of', 'use', 'uses', 'using', 'with', 'that', 'this', 'it', 'be', 'are',
@@ -54,15 +50,10 @@ class SearchMemoryService:
         user_id: Optional[UUID] = None
     ) -> List[Dict]:
         try:
-            # Ensure session is in a clean state before starting. If a previous
-            # error left the transaction aborted, subsequent DB commands will
-            # raise InFailedSQLTransactionError. Best-effort rollback here clears
-            # that state so this request can proceed.
+
             try:
                 await self.db.rollback()
             except Exception:
-                # Not fatal; if rollback fails we'll continue and let individual
-                # DB calls handle their own errors. Keep this at debug level.
                 logger.debug("Initial rollback (cleanup) failed or no active transaction")
 
             if not query or not query.strip():
@@ -132,8 +123,6 @@ class SearchMemoryService:
             if not query_embedding:
                 logger.warning("Query embedding is empty, skipping vector search")
                 return []
-
-            # Try a DB-side ANN search using pgvector operator (fast when index exists).
             try:
                 ann_results = await self._vector_search_ann(query_embedding, project_id, tags, limit, similarity_threshold)
                 if ann_results is not None:
@@ -141,13 +130,11 @@ class SearchMemoryService:
             except Exception as e:
                 logger.debug(f"ANN DB search failed or not supported, falling back: {e}")
 
-            # Fallback: load candidate rows and compute similarity in Python
             base_query = self._build_vector_query(project_id, tags)
             try:
                 result = await self.db.execute(base_query)
             except Exception as e:
                 logger.error(f"DB error during vector candidates fetch: {e}")
-                # transaction may be aborted; try to rollback to clear state for future requests
                 try:
                     await self.db.rollback()
                 except Exception:
@@ -173,15 +160,10 @@ class SearchMemoryService:
         limit: int,
         similarity_threshold: float,
     ) -> Optional[List[Dict]]:
-        """
-        Perform a DB-side ANN search using pgvector's distance operator (<->).
-        Returns a list of result dicts, or None if this path is not available.
-        """
         try:
             if not query_embedding:
                 return []
 
-            # Build vector literal and SQL where clause dynamically
             vec_literal = '[' + ','.join(str(float(x)) for x in query_embedding) + ']'
 
             where_clauses = ["embedding IS NOT NULL"]
@@ -192,7 +174,6 @@ class SearchMemoryService:
                 params["project_id"] = str(project_id)
 
             if tags:
-                # simple tag matching using ILIKE on array_to_string
                 tag_conds = []
                 for i, t in enumerate(tags):
                     key = f"tag{i}"
@@ -202,7 +183,6 @@ class SearchMemoryService:
 
             where_sql = " AND ".join(where_clauses)
 
-            # Use pgvector distance operator '<' (lower is nearer). We map distance -> similarity via 1/(1+distance)
             sql = (
                 "SELECT id, content, summary, tags, project_id, created_at, embedding <-> :q::vector AS distance "
                 f"FROM memories WHERE {where_sql} ORDER BY distance ASC LIMIT :limit"
@@ -215,7 +195,6 @@ class SearchMemoryService:
             for row in rows:
                 dist = row.get("distance")
                 try:
-                    # convert distance to a similarity-like score in [0,1]
                     sim = 1.0 / (1.0 + float(dist)) if dist is not None else 0.0
                 except Exception:
                     sim = 0.0
@@ -234,7 +213,6 @@ class SearchMemoryService:
 
             return results
         except Exception as e:
-            # If anything goes wrong (no pgvector, SQL error, driver issues), return None
             logger.debug(f"DB ANN search error: {e}")
             return None
 
@@ -274,13 +252,6 @@ class SearchMemoryService:
     
 
     def _rank_results(self, vector_results: List[Dict], keyword_results: List[Dict], top_k: int = 10, request_tags: Optional[List[str]] = None) -> List[Dict]:
-        """
-        Combine and rank results from vector and keyword search.
-        Uses hybrid ranking:
-        1. Boost results that appear in both searches
-        2. Combine scores with weighted average
-        3. Remove duplicates, keeping highest score
-        """
         try:
             # Create combined results dictionary (memory_id -> result)
             combined_results = {}
@@ -298,7 +269,6 @@ class SearchMemoryService:
                 result["combined_score"] = result["score"] * VECTOR_WEIGHT  # Start combined score with vector weight
                 combined_results[memory_id] = result
 
-            # Add/update with keyword results
             for result in keyword_results:
                 memory_id = result["id"]
                 if memory_id in combined_results:
@@ -324,17 +294,14 @@ class SearchMemoryService:
                     result["combined_score"] = min(result["combined_score"], 1.0)
                     combined_results[memory_id] = result
 
-            # Apply tag-boost: If any request tag appears in document tags, add TAG_BOOST
             for res in combined_results.values():
                 doc_tags = [t.lower().strip() for t in (res.get("tags") or [])]
                 if any(rt in doc_tags for rt in req_tags_norm):
                     res["combined_score"] = min(res["combined_score"] + TAG_BOOST, 1.0)
 
-            # Sort by combined score (descending)
             final_results = list(combined_results.values())
             final_results.sort(key=lambda x: x["combined_score"], reverse=True)
 
-            # Ensure returned score is clamped to [0.0, 1.0] and limit the number of results
             ranked_results = []
             for i, result in enumerate(final_results[:top_k]):
                 result["score"] = float(max(0.0, min(result["combined_score"], 1.0)))
@@ -362,22 +329,16 @@ class SearchMemoryService:
         return (dot_product / (magnitude1 * magnitude2) + 1) / 2
 
     async def keyword_search(self, keywords: List[str], project_id: Optional[UUID] = None, limit: int = 10, full_query: Optional[str] = None) -> List[Dict]:
-        """
-        Combined keyword search: tokenize, build DB conditions, fetch candidates and rank them.
-        This combines previous helper logic into a single method for simplicity.
-        """
         try:
             if not keywords:
                 raise ValueError("Keywords list cannot be empty")
 
-            # 1) Tokenize (Unicode-aware), filter stopwords and short tokens, dedupe while preserving order
             token_segments = [token for kw in keywords for token in re.findall(r"\w+", kw.lower(), flags=re.UNICODE)]
             token_segments = [t for t in token_segments if t and t not in STOPWORDS and len(t) >= 3]
             token_segments = list(dict.fromkeys(token_segments))
             if not token_segments:
                 return []
 
-            # 2) Build DB conditions for any-token match across content/summary/tags
             token_conditions = [or_(
                 func.lower(Memory.content).like(f"%{token}%"),
                 func.lower(Memory.summary).like(f"%{token}%"),
@@ -388,7 +349,6 @@ class SearchMemoryService:
             if project_id:
                 where_clause = and_(where_clause, Memory.project_id == project_id)
 
-            # 3) Fetch candidate rows (fetch more than `limit` for local re-ranking)
             fetch_limit = max(limit * 5, 50)
             query = select(Memory).where(where_clause).order_by(Memory.created_at.desc()).limit(fetch_limit)
             try:
@@ -402,7 +362,6 @@ class SearchMemoryService:
                 return []
             memories = result.scalars().all()
 
-            # 4) Score and rank locally
             candidates = []
             for memory in memories:
                 combined = " ".join([memory.content or "", memory.summary or "", " ".join(memory.tags or [])]).lower()
@@ -438,12 +397,10 @@ class SearchMemoryService:
         tags: Optional[List[str]], 
         limit: int
     ) -> Optional[List[Dict]]:
-        """Kiểm tra xem kết quả tìm kiếm có trong cache không."""
         if not self.redis:
             return None
 
         try:
-            # Tạo key cache dựa trên tham số tìm kiếm
             cache_params = {
                 "query": query,
                 "project_id": str(project_id) if project_id else None,
@@ -460,12 +417,11 @@ class SearchMemoryService:
                     # corrupted cache entry
                     return None
 
-                # Repair older cache entries that might be missing `search_type`
                 repaired = False
                 if isinstance(parsed, list):
                     for item in parsed:
                         if isinstance(item, dict) and "search_type" not in item:
-                            # try infer from sources or score
+
                             st = "unknown"
                             src = item.get("sources") or {}
                             try:
@@ -488,7 +444,7 @@ class SearchMemoryService:
                             repaired = True
 
                 if repaired:
-                    # async re-cache the repaired results (best-effort)
+
                     try:
                         await self._cache_results(parsed, query, project_id, tags, limit)
                     except Exception:
@@ -508,12 +464,10 @@ class SearchMemoryService:
         tags: Optional[List[str]], 
         limit: int
     ):
-        """Cache kết quả tìm kiếm vào Redis."""
         if not self.redis:
             return
 
         try:
-            # Tạo key cache tương tự như _check_cache
             cache_params = {
                 "query": query,
                 "project_id": str(project_id) if project_id else None,
@@ -521,8 +475,7 @@ class SearchMemoryService:
                 "limit": limit
             }
             cache_key = f"search:{hashlib.md5(json.dumps(cache_params, sort_keys=True).encode()).hexdigest()}"
-            
-            # Cache trong 1 giờ
+
             self.redis.setex(cache_key, 3600, json.dumps(results, default=str))
             logger.info(f"Cached search results with key: {cache_key}")
         except Exception as e:

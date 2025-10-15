@@ -23,12 +23,9 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan manager."""
-    # Startup
     logger.info("Starting CodeMemory Backend...")
     
     try:
-        # Initialize database connections
         success = await initialize_all_databases()
         if success:
             logger.info("Database connections initialized")
@@ -38,8 +35,7 @@ async def lifespan(app: FastAPI):
         logger.error(f"Startup error: {e}")
 
     yield
-    
-    # Shutdown
+
     logger.info("Shutting down CodeMemory Backend...")
     try:
         await db_manager.close_connections()

@@ -18,17 +18,15 @@ async def user_created(
     db: AsyncSession = Depends(get_db_session),
 ):
     try:
-        # Check static secret header
         secret = request.headers.get("x-webhook-secret") or request.headers.get("X-Webhook-Secret")
         if not secret or secret != SUPABASE_WEBHOOK_SECRET:
             logger.warning("Invalid or missing webhook secret")
             raise HTTPException(status_code=403, detail="Invalid webhook secret")
 
-        # Read request body
         body = await request.body()
         payload = json.loads(body)
 
-        # Extract user data
+
         user_data = payload.get("record") or payload.get("new") or payload.get("data") or payload.get("user")
         if not user_data or not isinstance(user_data, dict):
             logger.warning("Webhook payload missing user data: %s", payload)
@@ -39,7 +37,6 @@ async def user_created(
         metadata = user_data.get("user_metadata") or {}
         full_name = metadata.get("full_name") if isinstance(metadata, dict) else user_data.get("name")
 
-        # Lookup existing user by supabase_user_id or email
         existing_user = None
         if supabase_user_id:
             res = await db.execute(select(User).where(User.supabase_user_id == supabase_user_id))

@@ -23,6 +23,14 @@ class SaveMemoryRequest(BaseModel):
             return list(set([tag.strip() for tag in v if tag.strip()]))[:20]
         return v
 
+class PerformedBy(BaseModel):
+    id: UUID
+    email: Optional[str] = None
+    name: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
 
 class MemoryResponse(BaseModel):
     id: UUID
@@ -34,7 +42,7 @@ class MemoryResponse(BaseModel):
     meta_data: Dict[str, Any]
     usage_count: int = 0
     embedding_dimensions: Optional[int] = None
-
+    performed_by: PerformedBy = None
     class Config:
         from_attributes = True
 
@@ -63,6 +71,7 @@ class SearchHit(BaseModel):
 class SearchResultsResponse(BaseModel):
     results: List[SearchHit]
     count: int
+    performed_by: PerformedBy = None
 
     class Config:
         from_attributes = True
@@ -87,18 +96,40 @@ class GetMemoriesResponse(BaseModel):
 # ============= PROJECT SCHEMAS =============
 
 class CreateProjectRequest(BaseModel):
-    name: str = Field(..., min_length=1, max_length=100)
+    name: Optional[str] = Field(
+        default=None,
+        max_length=100,
+        description="Optional. If blank, server will auto-fill from repo summary."
+    )
+    repo_url: str = Field(..., min_length=1, max_length=1000)
+    settings: Optional[Dict[str, Any]] = Field(default=None)
+
+    @validator('repo_url')
+    def validate_repo_url(cls, v):
+        if v is not None:
+            return v.strip() if v.strip() else None
+        return v
+    
+
+
+class UpdateProjectRequest(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=100)
     description: Optional[str] = Field(default=None, max_length=1000)
+    is_active: Optional[bool] = Field(default=None)
+    repo_url: Optional[str] = Field(default=None, max_length=1024)
+    technologies: Optional[List[str]] = Field(default=None)
     settings: Optional[Dict[str, Any]] = Field(default=None)
 
     @validator('name')
     def validate_name(cls, v):
-        if not v or not v.strip():
-            raise ValueError('Project name cannot be empty')
-        return v.strip()
+        if v is not None:
+            if not v or not v.strip():
+                raise ValueError('Project name cannot be empty')
+            return v.strip()
+        return v
 
     @validator('description')
-    def validate_description(cls, v):
+    def validate_description_optional(cls, v):
         if v is not None:
             return v.strip() if v.strip() else None
         return v
@@ -108,9 +139,15 @@ class ProjectResponse(BaseModel):
     id: UUID
     name: str
     description: Optional[str]
-    settings: Optional[Dict[str, Any]]
+    is_active: Optional[bool] = None
+    repo_url: Optional[str] = None
+    technologies: Optional[List[str]] = None
+    memories_count: int = 0
+    members_count: int = 0
+    last_active_at: Optional[datetime] = None
+    settings: Optional[Dict[str, Any]] = None
     created_at: datetime
-    updated_at: Optional[datetime]
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -125,6 +162,13 @@ class GetRecentMemoriesRequest(BaseModel):
 class GetRecentMemoriesResponse(BaseModel):
     memories: List[MemoryResponse]
     total: int
+
+    class Config:
+        from_attributes = True
+
+class DeleteMemoryResponse(BaseModel):
+    deleted_id: UUID
+    performed_by: PerformedBy = None
 
     class Config:
         from_attributes = True

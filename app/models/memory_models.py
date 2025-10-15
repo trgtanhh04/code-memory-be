@@ -30,8 +30,14 @@ class User(Base):
 class Project(Base):
     __tablename__ = "projects"
     id = Column(UUID(as_uuid=True), primary_key=True, default=default_uuid, index=True)
-    name = Column(String, nullable=False, unique=True)
+    name = Column(String, nullable=False)
     description = Column(Text, nullable=True)
+    is_active = Column(Boolean, default=True)
+    repo_url = Column(String, nullable=True)
+    technologies = Column(JSONB, nullable=True)
+    memories_count = Column(Integer, default=0)
+    members_count = Column(Integer, default=0)
+    last_active_at = Column(DateTime(timezone=True), nullable=True)
     settings = Column(JSONB, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -98,6 +104,3 @@ class ApiKey(Base):
     last_used_at = Column(DateTime(timezone=True), nullable=True)
     # relationships
     user = relationship("User", back_populates="api_keys")
- 
-
-

@@ -26,3 +26,9 @@ UPSTASH_REDIS_REST_TOKEN = os.getenv("UPSTASH_REDIS_REST_TOKEN")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 EMBEDDING_MODEL_NAME = os.getenv("EMBEDDING_MODEL_NAME", "models/gemini-embedding-exp-03-07")
 
+# File and Directory Paths
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+OUTPUT_DIR = os.path.join(BASE_DIR, 'repo_output')
+META_DIR = os.path.join(BASE_DIR, 'repo_cache')
+META_FILE = os.path.join(META_DIR, 'all_repo_meta.json')
+

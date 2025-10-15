@@ -40,7 +40,6 @@ class SaveMemoryService:
             embedding_vector = await self._generate_embedding(processed_content)
             processed_tags = tags or await self._auto_generate_tags(processed_content)
             
-            # Save to database (following ERD schema)
             memory = await self._save_to_database(
                 content=processed_content,
                 embedding=embedding_vector,
