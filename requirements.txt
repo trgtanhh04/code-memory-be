@@ -48,12 +48,5 @@ pgvector==0.2.4
 # CORS
 fastapi-cors==0.0.6
 
-# gitlab
-pypythonpython-gitlab==3.12.06.4.90
-
-#
-# docling
-docling-2.56.1==
-
 #r  repomix
-rerepomix==!repomix --version==0.3.4
+rerepomix==0.3.4
