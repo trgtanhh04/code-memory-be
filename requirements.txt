@@ -7,7 +7,9 @@ packaging==23.2
 Cython==3.0.5
 
 # FastAPI and Web Framework
-fastapi==0.104.1
+# FastAPI: allow a newer version compatible with anyio>=4 required by some transitive deps
+fastapi>=0.105.0,<0.110.0
+anyio>=4.5,<5
 uvicorn[standard]==0.23.2
 pydantic==2.4.2
 pydantic-settings==2.0.3
