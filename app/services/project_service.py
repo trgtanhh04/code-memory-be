@@ -1,6 +1,3 @@
-import cmd
-import sys
-from networkx import config
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from sqlalchemy.exc import IntegrityError
@@ -8,13 +5,11 @@ from typing import Optional, List
 from datetime import datetime, timedelta
 from uuid import UUID
 import logging
-from sympy import re
 from app.models.memory_models import Project, UserProject, Memory, User
 from app.schemas.memory_schemas import CreateProjectRequest
 from .repomix_service import RepoAnalyzerService
 import os
 from datetime import datetime
-import cmd
 
 
 logger = logging.getLogger(__name__)
