@@ -103,6 +103,3 @@ pgvector==0.2.4
 
 # CORS
 fastapi-cors==0.0.6
-
-# Dev tool (nếu cần ở runtime; nếu không, chuyển sang dev-requirements.txt)
-repomix==0.3.4
