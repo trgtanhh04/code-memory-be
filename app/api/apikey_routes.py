@@ -38,8 +38,8 @@ async def create_key(req: CreateApiKeyRequest, user_id: Optional[str] = Header(N
 class ApiKeyResponse(BaseModel):
     id: UUID
     name: Optional[str] = None
-    api_key: Optional[str] = None
     scopes: Optional[list] = None
+    raw_secret: Optional[str] = None
     revoked: bool
     created_at: Optional[str] = None
     last_used_at: Optional[str] = None
@@ -67,7 +67,7 @@ async def list_keys(
             ApiKeyResponse(
                 id=r.id,
                 name=r.name,
-                api_key=r.hashed_secret,
+                raw_secret=f"****...{r.raw_secret[-4:]}" if r.raw_secret else None,
                 scopes=r.scopes,
                 revoked=bool(r.revoked),
                 created_at=r.created_at.isoformat() if r.created_at else None,

@@ -8,20 +8,30 @@ from app.schemas.memory_schemas import CreateProjectRequest, ProjectResponse, Up
 from app.services.project_service import ProjectService
 from app.services.repomix_service import RepoAnalyzerService
 from app.db.connect_db import get_db_session
+import os
 
+DEFAULT_USER_ID = os.getenv("DEFAULT_USER_ID", "12345678-1234-5678-9012-123456789012")
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/projects", tags=["projects"])
 
 
-repo_analyzer = RepoAnalyzerService()
+# repo_analyzer = RepoAnalyzerService()
+
+# async def get_project_service(
+#     db: AsyncSession = Depends(get_db_session),
+# ) -> ProjectService:
+#     return ProjectService(db=db, repo_analyzer=repo_analyzer)
+
+async def get_repo_analyzer() -> RepoAnalyzerService:
+    return RepoAnalyzerService()
 
 async def get_project_service(
     db: AsyncSession = Depends(get_db_session),
+    repo_analyzer: RepoAnalyzerService = Depends(get_repo_analyzer)
 ) -> ProjectService:
     return ProjectService(db=db, repo_analyzer=repo_analyzer)
-
 
 
 @router.post("/create", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
@@ -32,7 +42,7 @@ async def create_project(
 ):
     try:
         if not user_id:
-            user_id = "12345678-1234-5678-9012-123456789012"
+            user_id = DEFAULT_USER_ID
         
         user_uuid = UUID(user_id)
         
@@ -78,7 +88,7 @@ async def edit_project(
 ):
     try:
         if not user_id:
-            user_id = "12345678-1234-5678-9012-123456789012"
+            user_id = DEFAULT_USER_ID
 
         user_uuid = UUID(user_id)
         
@@ -180,7 +190,7 @@ async def get_user_projects(
 ):
     try:
         if not user_id:
-            user_id = "12345678-1234-5678-9012-123456789012"
+            user_id = DEFAULT_USER_ID
         
         user_uuid = UUID(user_id)
         
@@ -216,7 +226,7 @@ async def get_project_details(
 ):
     try:
         if not user_id:
-            user_id = "12345678-1234-5678-9012-123456789012"
+            user_id = DEFAULT_USER_ID
         
         user_uuid = UUID(user_id)
         

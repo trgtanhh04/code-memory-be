@@ -3,3 +3,12 @@
 *.pyc
 *__init__.py
 .vscode/
+# Ignore generated data, outputs, and local migration artifacts
+migrations/
+repo_cache/
+repo_output/
+tests/
+
+# Alembic config and local test data
+alembic.ini
+test_data_collection.json

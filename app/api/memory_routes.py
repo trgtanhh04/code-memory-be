@@ -17,6 +17,7 @@ from app.db.connect_db import get_db_session, get_redis, db_manager
 import uuid
 import json
 from app.api.deps import require_apikey, get_user_from_apikey, get_performer_by_api_key
+from app.services.repomix_service import RepoAnalyzerService
 from app.models.memory_models import UserProject, ApiKey, User
 from sqlalchemy import select
 from sqlalchemy import func, text
@@ -33,12 +34,14 @@ async def get_save_memory_service(
 ) -> SaveMemoryService:
     return SaveMemoryService(db=db, redis=redis)
 
+async def get_repo_analyzer() -> RepoAnalyzerService:
+    return RepoAnalyzerService()
 
 async def get_project_service(
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_db_session),
+    repo_analyzer: RepoAnalyzerService = Depends(get_repo_analyzer) 
 ) -> ProjectService:
-    return ProjectService(db=db)
-
+    return ProjectService(db=db, repo_analyzer=repo_analyzer)
 
 async def get_search_service(
     db: AsyncSession = Depends(get_db_session),

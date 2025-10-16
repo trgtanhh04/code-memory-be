@@ -84,7 +84,7 @@ async def get_user_by_api_key(
     api_key: str | None = Header(None, alias="x-api-key"),
     db: AsyncSession = Depends(get_db_session)
 ):
-    ak = await db.execute(select(ApiKey).where(ApiKey.hashed_secret == api_key))
+    ak = await db.execute(select(ApiKey).where(ApiKey.raw_secret == api_key))
     ak = ak.scalar_one_or_none()
 
     if not ak or ak.revoked:

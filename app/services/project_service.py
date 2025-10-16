@@ -9,8 +9,6 @@ from app.models.memory_models import Project, UserProject, Memory, User
 from app.schemas.memory_schemas import CreateProjectRequest
 from .repomix_service import RepoAnalyzerService
 import os
-from datetime import datetime
-
 
 logger = logging.getLogger(__name__)
 

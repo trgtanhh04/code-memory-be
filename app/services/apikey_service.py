@@ -28,12 +28,12 @@ async def create_apikey(db: AsyncSession, user_id: UUID, name: str = None, scope
         id=uuid4(),
         user_id=user_id,
         name=name,
-        hashed_secret=f"{uuid4()}.{secret}",
+        raw_secret=f"{uuid4()}.{secret}",
         scopes=scopes or []
     )
     db.add(api_key)
     await db.flush()
-    full_key = api_key.hashed_secret
+    full_key = api_key.raw_secret
     return api_key, full_key
 
 async def revoke_apikey(db: AsyncSession, key_id):

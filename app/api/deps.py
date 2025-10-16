@@ -44,13 +44,13 @@ async def get_user_from_apikey(
         key_id = None
 
     if not ak:
-        res = await db.execute(select(ApiKey).where(ApiKey.hashed_secret == raw_key))
+        res = await db.execute(select(ApiKey).where(ApiKey.raw_secret == raw_key))
         ak = res.scalar_one_or_none()
 
     if not ak or ak.revoked:
         raise HTTPException(status_code=401, detail="ApiKey not found or revoked")
 
-    stored = ak.hashed_secret
+    stored = ak.raw_secret
     if stored != raw_key:
         if not verify_secret(secret, stored):
             raise HTTPException(status_code=401, detail="Invalid apiKey secret")
@@ -66,8 +66,8 @@ async def get_performer_by_api_key(
     raw_key: str,
     db: AsyncSession
 ) -> Optional[PerformedBy]:
-    
-    ak = await db.execute(select(ApiKey).where(ApiKey.hashed_secret == raw_key))
+
+    ak = await db.execute(select(ApiKey).where(ApiKey.raw_secret == raw_key))
     ak = ak.scalar_one_or_none()
 
     if not ak or ak.revoked:
