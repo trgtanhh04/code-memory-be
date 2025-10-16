@@ -53,6 +53,7 @@
 # #r  repomix
 # repomix==0.3.4
 # Build Dependencies - Fixed for Python 3.11 compatibility
+# Build Dependencies - Fixed for Python 3.11 compatibility
 setuptools==68.2.2
 wheel==0.41.2
 pip==23.3.1
@@ -65,7 +66,7 @@ fastapi>=0.115.0,<0.116.0
 anyio>=4.5,<5.0
 uvicorn[standard]>=0.30.0,<0.31.0
 pydantic>=2.7,<3.0
-pydantic-settings==2.0.3
+pydantic-settings>=2.5.2,<3.0
 
 # Database Dependencies
 sqlalchemy==2.0.21
@@ -85,10 +86,10 @@ langchain-google-genai==1.0.10
 google-generativeai>=0.7.0,<0.8.0
 numpy==1.25.2
 
-# Supabase (bản mới hỗ trợ httpx>=0.27)
-supabase>=2.6.0
+# Supabase (hỗ trợ httpx>=0.27)
+supabase>=2.6.0,<3.0
 
-# HTTP Client (nâng để tương thích mcp)
+# HTTP Client (tương thích mcp)
 httpx>=0.27.0,<0.28.0
 aiohttp==3.9.1
 
@@ -103,5 +104,5 @@ pgvector==0.2.4
 # CORS
 fastapi-cors==0.0.6
 
-# RepoMix (tùy chọn: có thể chuyển sang dev-only nếu không cần lúc deploy)
+# Dev tool (nếu cần ở runtime; nếu không, chuyển sang dev-requirements.txt)
 repomix==0.3.4
