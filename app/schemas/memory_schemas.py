@@ -95,16 +95,33 @@ class GetMemoriesResponse(BaseModel):
 
 # ============= PROJECT SCHEMAS =============
 
+# class CreateProjectRequest(BaseModel):
+#     name: Optional[str] = Field(
+#         default=None,
+#         max_length=100,
+#         description="Optional. If blank, server will auto-fill from repo summary."
+#     )
+#     repo_url: str = Field(..., min_length=1, max_length=1000)
+#     settings: Optional[Dict[str, Any]] = Field(default=None)
+
+#     @validator('repo_url')
+#     def validate_repo_url(cls, v):
+#         if v is not None:
+#             return v.strip() if v.strip() else None
+#         return v
+
 class CreateProjectRequest(BaseModel):
     name: Optional[str] = Field(
         default=None,
         max_length=100,
         description="Optional. If blank, server will auto-fill from repo summary."
     )
-    repo_url: str = Field(..., min_length=1, max_length=1000)
+    repo_url: Optional[str] = Field(default=None, max_length=1000)
+    description: Optional[str] = Field(default=None, max_length=1000)
+    technologies: Optional[List[str]] = Field(default=None)
     settings: Optional[Dict[str, Any]] = Field(default=None)
 
-    @validator('repo_url')
+    @validator('name')
     def validate_repo_url(cls, v):
         if v is not None:
             return v.strip() if v.strip() else None
@@ -148,6 +165,7 @@ class ProjectResponse(BaseModel):
     settings: Optional[Dict[str, Any]] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
+    performed_by: PerformedBy = None
 
     class Config:
         from_attributes = True
@@ -172,3 +190,22 @@ class DeleteMemoryResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class UpdateMemoryRequest(BaseModel):
+    content: Optional[str] = None
+    tags: Optional[List[str]] = None
+    metadata: Optional[Dict[str, Any]] = None
+
+    @validator('content')
+    def validate_content(cls, v):
+        if v is not None:
+            v = v.strip()
+            if not v:
+                raise ValueError('Content cannot be empty')
+            if len(v) > 50000:
+                raise ValueError('Content too large (max 50KB)')
+            return v
+        return v
+        
+    

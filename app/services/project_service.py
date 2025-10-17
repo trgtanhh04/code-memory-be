@@ -7,42 +7,44 @@ from uuid import UUID
 import logging
 from app.models.memory_models import Project, UserProject, Memory, User
 from app.schemas.memory_schemas import CreateProjectRequest
-from .repomix_service import RepoAnalyzerService
+# from .repomix_service import RepoAnalyzerService
 import os
 
 logger = logging.getLogger(__name__)
 
 
 class ProjectService:
-    def __init__(self, db: AsyncSession, repo_analyzer: RepoAnalyzerService):
+    # def __init__(self, db: AsyncSession, repo_analyzer: RepoAnalyzerService):
+    #     self.db = db
+    #     self.repo_analyzer = repo_analyzer
+    def __init__(self, db: AsyncSession):
         self.db = db
-        self.repo_analyzer = repo_analyzer
 
     # Create project and assign owner
     async def create_project(self, request: CreateProjectRequest, user_id: UUID) -> Project:
         try:
             user = await self._ensure_user_exists(user_id)
 
-            if request.repo_url:
-                exist = await self.db.execute(select(Project).where(Project.repo_url == request.repo_url))
-                if exist.scalars().first():
-                    raise ValueError("Project with this repo_url already exists")
+            # if request.repo_url:
+            #     exist = await self.db.execute(select(Project).where(Project.repo_url == request.repo_url))
+            #     if exist.scalars().first():
+            #         raise ValueError("Project with this repo_url already exists")
 
-            output_file = self.repo_analyzer.run_repomix_remote(request.repo_url)
-            if not output_file or not os.path.exists(output_file):
-                raise ValueError("Failed to clone repository or extract files")
+            # output_file = self.repo_analyzer.run_repomix_remote(request.repo_url)
+            # if not output_file or not os.path.exists(output_file):
+            #     raise ValueError("Failed to clone repository or extract files")
 
             # 2. LLM extract summary
-            repo_summary = self.repo_analyzer.llm_summary_repo(output_file)
-            if not repo_summary:
-                raise ValueError("Failed to extract repo summary from LLM")
+            # repo_summary = self.repo_analyzer.llm_summary_repo(output_file)
+            # if not repo_summary:
+            #     raise ValueError("Failed to extract repo summary from LLM")
 
             # 3. Tạo project
             project = Project(
-                name=request.name or repo_summary.get('project_name'),
+                name=request.name,
                 repo_url=request.repo_url,
-                description=repo_summary.get('description'),
-                technologies=repo_summary.get('tech_stack', []),
+                description=request.description,
+                technologies=request.technologies or [],
                 settings=request.settings or {}
             )
             self.db.add(project)

@@ -97,3 +97,4 @@ def require_apikey(required_scope: Optional[str] = None):
         return current_user
 
     return _dependency
+

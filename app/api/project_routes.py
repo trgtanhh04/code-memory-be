@@ -1,14 +1,19 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 import logging
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
 from fastapi import Path
 from app.schemas.memory_schemas import CreateProjectRequest, ProjectResponse, UpdateProjectRequest
 from app.services.project_service import ProjectService
-from app.services.repomix_service import RepoAnalyzerService
+# from app.services.repomix_service import RepoAnalyzerService
 from app.db.connect_db import get_db_session
+from app.api.deps import require_apikey
+from app.models.memory_models import ApiKey, User
 import os
+from app.schemas.memory_schemas import (
+    PerformedBy,
+)
 
 DEFAULT_USER_ID = os.getenv("DEFAULT_USER_ID", "12345678-1234-5678-9012-123456789012")
 
@@ -17,27 +22,28 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/projects", tags=["projects"])
 
 
-# repo_analyzer = RepoAnalyzerService()
+# async def get_repo_analyzer() -> RepoAnalyzerService:
+#     return RepoAnalyzerService()
 
 # async def get_project_service(
 #     db: AsyncSession = Depends(get_db_session),
+#     repo_analyzer: RepoAnalyzerService = Depends(get_repo_analyzer)
 # ) -> ProjectService:
 #     return ProjectService(db=db, repo_analyzer=repo_analyzer)
 
-async def get_repo_analyzer() -> RepoAnalyzerService:
-    return RepoAnalyzerService()
-
 async def get_project_service(
-    db: AsyncSession = Depends(get_db_session),
-    repo_analyzer: RepoAnalyzerService = Depends(get_repo_analyzer)
+    db: AsyncSession = Depends(get_db_session)
 ) -> ProjectService:
-    return ProjectService(db=db, repo_analyzer=repo_analyzer)
+    return ProjectService(db=db)
+
 
 
 @router.post("/create", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
 async def create_project(
     request: CreateProjectRequest,
     user_id: Optional[str] = Header(None, alias="X-User-ID"),
+    current_user: dict = Depends(require_apikey("create")),
+    db: AsyncSession = Depends(get_db_session),
     project_service: ProjectService = Depends(get_project_service)
 ):
     try:
@@ -45,6 +51,18 @@ async def create_project(
             user_id = DEFAULT_USER_ID
         
         user_uuid = UUID(user_id)
+
+        performer = None
+        try:
+            ak_id = current_user.get("api_key_id")
+            if ak_id:
+                ak = await db.get(ApiKey, ak_id)
+                if ak and not ak.revoked:
+                    u = await db.get(User, ak.user_id)
+                    if u:
+                        performer = PerformedBy(id=u.id, email=u.email, name=u.name)
+        except Exception:
+            performer = None
         
         project = await project_service.create_project(
             request=request,
@@ -58,7 +76,8 @@ async def create_project(
             technologies=project.technologies,
             settings=project.settings,
             created_at=project.created_at,
-            updated_at=project.updated_at
+            updated_at=project.updated_at,
+            performed_by=performer
         )
         
         logger.info(f"Project created successfully: {project.id}")

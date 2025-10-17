@@ -8,7 +8,8 @@ from uuid import UUID
 from app.schemas.memory_schemas import (
     SaveMemoryRequest, MemoryResponse, GetMemoriesResponse, 
     GetRecentMemoriesRequest, GetRecentMemoriesResponse,
-    SearchMemoryRequest, SearchResultsResponse, PerformedBy, DeleteMemoryResponse
+    SearchMemoryRequest, SearchResultsResponse, PerformedBy, DeleteMemoryResponse,
+    UpdateMemoryRequest
 )
 from app.services.save_memory_service import SaveMemoryService
 from app.services.project_service import ProjectService
@@ -23,6 +24,7 @@ from sqlalchemy import select
 from sqlalchemy import func, text
 from sqlalchemy import select, and_, func, text, delete
 from app.models.memory_models import Memory
+from uuid import UUID as _UUID
 
 logger = logging.getLogger(__name__)
 
@@ -309,7 +311,6 @@ async def get_recent_memories(
 
 
 # --------------- Delete Memory Endpoint ---------------
-
 @router.delete("/{memory_id}", response_model=DeleteMemoryResponse)
 async def delete_memory(
     memory_id: UUID,
@@ -317,12 +318,6 @@ async def delete_memory(
     db: AsyncSession = Depends(get_db_session),
     redis: Optional[Redis] = Depends(get_redis)
 ):
-    """
-    Delete a memory by ID
-    
-    - **memory_id**: UUID of the memory to delete
-    - **X-User-ID**: User ID header (temporary authentication method)
-    """
     try:
         if not current_user or not current_user.get("user_id"):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing or invalid apiKey")
@@ -383,6 +378,75 @@ async def delete_memory(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error while deleting memory"
         )
+
+# --------------- Update Memories Endpoint ---------------
+@router.patch("/{memory_id}", response_model=MemoryResponse)
+async def edit_memory(
+    memory_id: UUID,
+    request: UpdateMemoryRequest,
+    db: AsyncSession = Depends(get_db_session),
+    save_service: SaveMemoryService = Depends(get_save_memory_service),
+    current_user: dict = Depends(require_apikey("edit")),
+):
+    # determine user id from API key
+    user_id = current_user.get("user_id")
+    try:
+        if isinstance(user_id, str):
+            user_id = _UUID(user_id)
+    except Exception:
+        pass
+    try:
+        # fetch memory and check access
+        result = await db.execute(select(Memory).where(Memory.id == memory_id))
+        memory = result.scalar_one_or_none()
+        if not memory:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Memory not found")
+
+        # verify ownership/project access
+        # has_access = await verify_user_project_access(memory.project_id, user_id, db)
+        # if not has_access:
+        #     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied to edit this memory")
+
+        updated = await save_service.update_memory(
+            memory_id=memory_id,
+            user_id=user_id,
+            content=request.content,
+            tags=request.tags,
+            metadata=request.metadata
+        )
+
+        performer = None
+        try:
+            u = await db.get(User, user_id)
+            if u:
+                performer = PerformedBy(id=u.id, email=u.email, name=u.name)
+        except Exception:
+            performer = None
+
+        resp = MemoryResponse(
+            id=updated.id,
+            content=updated.content,
+            tags=updated.tags or [],
+            created_at=updated.created_at,
+            updated_at=updated.updated_at,
+            project_id=updated.project_id,
+            meta_data=updated.meta_data or {},
+            usage_count=updated.usage_count,
+            embedding_dimensions=len(updated.embedding) if updated.embedding is not None else None,
+            performed_by=performer
+        )
+
+        return resp
+
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except PermissionError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+    except Exception as e:
+        logger.error(f"Unexpected error editing memory: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to edit memory")
 
 
 # --------------- Vector Search Endpoint ---------------

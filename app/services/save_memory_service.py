@@ -141,3 +141,48 @@ class SaveMemoryService:
             
         except Exception as e:
             logger.warning(f"Failed to cache memory: {str(e)}")
+
+    async def update_memory(
+        self,
+        memory_id: UUID,
+        user_id: UUID,
+        content: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        metadata: Optional[Dict] = None,
+    ) -> Memory:
+        try:
+            result = await self.db.execute(select(Memory).where(Memory.id == memory_id))
+            memory = result.scalar_one_or_none()
+            if not memory:
+                raise ValueError("Memory not found")
+
+            if content is not None:
+                if not content.strip():
+                    raise ValueError("Content cannot be empty")
+                memory.content = ' '.join(content.split()).strip()
+                try:
+                    embedding = await self._generate_embedding(memory.content)
+                    memory.embedding = embedding
+                except Exception:
+                    logger.debug("Failed to regenerate embedding for updated memory")
+
+            if tags is not None:
+                memory.tags = list(dict.fromkeys([t.strip() for t in tags if t and t.strip()]))[:50]
+
+            if metadata is not None:
+                memory.meta_data = metadata
+
+            memory.updated_at = datetime.utcnow()
+            await self.db.flush()
+            await self.db.commit()
+
+            # update cache
+            try:
+                await self._cache_memory(memory, user_id, memory.project_id)
+            except Exception:
+                pass
+
+            return memory
+        except Exception as e:
+            logger.error(f"Failed to update memory: {e}")
+            raise
